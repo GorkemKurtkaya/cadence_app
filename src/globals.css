@@ -1,0 +1,143 @@
+@import "tailwindcss";
+
+/* IBM Plex — yerelden yüklenir (Tauri offline). Google Fonts <link> kullanma. */
+@import "@fontsource/ibm-plex-sans/400.css";
+@import "@fontsource/ibm-plex-sans/500.css";
+@import "@fontsource/ibm-plex-sans/600.css";
+@import "@fontsource/ibm-plex-sans/700.css";
+@import "@fontsource/ibm-plex-mono/400.css";
+@import "@fontsource/ibm-plex-mono/500.css";
+@import "@fontsource/ibm-plex-mono/600.css";
+
+@custom-variant dark (&:is(.dark *));
+
+/* Açık tema (kullanılmıyor — uygulama default dark; yine de tutarlı token seti). */
+:root {
+  --radius: 0.7rem;
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.145 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.145 0 0);
+  --primary: oklch(0.205 0 0);
+  --primary-foreground: oklch(0.985 0 0);
+  --secondary: oklch(0.97 0 0);
+  --secondary-foreground: oklch(0.205 0 0);
+  --muted: oklch(0.97 0 0);
+  --muted-foreground: oklch(0.556 0 0);
+  --accent: oklch(0.97 0 0);
+  --accent-foreground: oklch(0.205 0 0);
+  --destructive: oklch(0.577 0.245 27.325);
+  --border: oklch(0.922 0 0);
+  --input: oklch(0.922 0 0);
+  --ring: oklch(0.708 0 0);
+
+  /* CommitFlow ek token'ları (dark'ta anlamlı; light'ta nötr placeholder). */
+  --sidebar: oklch(0.985 0 0);
+  --panel: oklch(1 0 0);
+  --accent-green: #22a06b;
+  --accent-green-2: #16794f;
+  --accent-blue: #2563eb;
+  --success: #16794f;
+}
+
+/* CommitFlow koyu teması — tasarım paletinin (CommitTracker.dc.html) shadcn token karşılığı. */
+.dark {
+  --background: #0d1013;
+  --foreground: #eef1f5;
+  --card: #141920;
+  --card-foreground: #eef1f5;
+  --popover: #141920;
+  --popover-foreground: #eef1f5;
+  --primary: #4ade80;
+  --primary-foreground: #08160d;
+  --secondary: #1b222a;
+  --secondary-foreground: #c8cdd5;
+  --muted: #161b21;
+  --muted-foreground: #8b93a0;
+  --accent: #1b2f22;
+  --accent-foreground: #4ade80;
+  --destructive: #f87171;
+  --border: #212730;
+  --input: #232830;
+  --ring: #4ade80;
+
+  /* CommitFlow ek token'ları. */
+  --sidebar: #101317;
+  --panel: #141920;
+  --accent-green: #4ade80;
+  --accent-green-2: #22a06b;
+  --accent-blue: #60a5fa;
+  --success: #4ade80;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  /* CommitFlow — bg-panel, bg-sidebar, text-accent-green, text-accent-blue vb. */
+  --color-sidebar: var(--sidebar);
+  --color-panel: var(--panel);
+  --color-accent-green: var(--accent-green);
+  --color-accent-green-2: var(--accent-green-2);
+  --color-accent-blue: var(--accent-blue);
+  --color-success: var(--success);
+
+  --font-sans: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", monospace;
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+@layer base {
+  * {
+    border-color: var(--border);
+  }
+  body {
+    background-color: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+  /* İnce, koyu tema uyumlu kaydırma çubuğu (tasarımdaki gibi). */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #2a3340;
+    border-radius: 4px;
+  }
+}
+
+/* Katkı takvimi/streak nabız animasyonu için (durum pili vb.). */
+@keyframes blink {
+  0%,
+  49% {
+    opacity: 1;
+  }
+  50%,
+  100% {
+    opacity: 0;
+  }
+}
