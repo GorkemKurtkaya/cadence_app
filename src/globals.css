@@ -33,7 +33,7 @@
   --input: oklch(0.922 0 0);
   --ring: oklch(0.708 0 0);
 
-  /* CommitFlow ek token'ları (dark'ta anlamlı; light'ta nötr placeholder). */
+  /* Cadence ek token'ları (dark'ta anlamlı; light'ta nötr placeholder). */
   --sidebar: oklch(0.985 0 0);
   --panel: oklch(1 0 0);
   --accent-green: #22a06b;
@@ -42,7 +42,7 @@
   --success: #16794f;
 }
 
-/* CommitFlow koyu teması — tasarım paletinin (CommitTracker.dc.html) shadcn token karşılığı. */
+/* Cadence koyu teması — tasarım paletinin (CommitTracker.dc.html) shadcn token karşılığı. */
 .dark {
   --background: #0d1013;
   --foreground: #eef1f5;
@@ -63,7 +63,7 @@
   --input: #232830;
   --ring: #4ade80;
 
-  /* CommitFlow ek token'ları. */
+  /* Cadence ek token'ları. */
   --sidebar: #101317;
   --panel: #141920;
   --accent-green: #4ade80;
@@ -92,7 +92,7 @@
   --color-input: var(--input);
   --color-ring: var(--ring);
 
-  /* CommitFlow — bg-panel, bg-sidebar, text-accent-green, text-accent-blue vb. */
+  /* Cadence — bg-panel, bg-sidebar, text-accent-green, text-accent-blue vb. */
   --color-sidebar: var(--sidebar);
   --color-panel: var(--panel);
   --color-accent-green: var(--accent-green);

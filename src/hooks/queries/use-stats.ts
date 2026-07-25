@@ -3,6 +3,7 @@ import { addDays, format, parseISO } from "date-fns";
 import { queryKeys } from "@/lib/query/keys";
 import { getCommitsByRange, getRecentCommits } from "@/services/storage";
 import {
+  buildYearCalendar,
   computeDayActivity,
   computeProjectStats,
   computeRangeStats,
@@ -12,15 +13,26 @@ import {
   weeklyBuckets,
 } from "@/services/stats";
 import { todayKey } from "@/lib/date";
-import type { CommitRow, DayActivity, ProjectStats, RangeStats, StreakStats } from "@/types";
+import type {
+  CommitRow,
+  DayActivity,
+  ProjectStats,
+  RangeStats,
+  ReportPeriod,
+  StreakStats,
+  YearCalendar,
+} from "@/types";
 
 function shift(date: string, days: number): string {
   return format(addDays(parseISO(date), days), "yyyy-MM-dd");
 }
 
 export interface DashboardData {
-  weekStats: RangeStats;
+  /** Seçili periyodun (Gün/Hafta/Ay/Yıl) toplamları. */
+  periodStats: RangeStats;
+  /** Haftalık aktivite (Pzt→Paz) — periyottan bağımsız, her zaman bu hafta. */
   weekActivity: Array<{ label: string; count: number }>;
+  /** Seçili periyottaki proje dağılımı. */
   projects: ProjectStats[];
   streak: StreakStats;
   heatmap21: DayActivity[];
@@ -28,27 +40,33 @@ export interface DashboardData {
 }
 
 /** Dashboard için tüm türetilmiş istatistikler (gerçek commit verisinden). */
-export function useDashboard() {
+export function useDashboard(period: ReportPeriod) {
   const today = todayKey();
   return useQuery<DashboardData>({
-    queryKey: queryKeys.stats.dashboard(today),
+    queryKey: queryKeys.stats.dashboard(today, period),
     queryFn: async () => {
-      // Streak/heatmap için geniş pencere (140 gün); haftalık kesitini içinden alırız.
-      const from = shift(today, -139);
+      const sel = rangeFor(period, today);
+      // Streak/heatmap 140 günlük pencere ister; seçili periyot daha geriye giderse (yıllık) onu kapsayacak şekilde genişlet.
+      const heatFrom = shift(today, -139);
+      const fetchFrom = sel.from < heatFrom ? sel.from : heatFrom;
       const [all, recent] = await Promise.all([
-        getCommitsByRange(from, today),
+        getCommitsByRange(fetchFrom, today),
         getRecentCommits(6),
       ]);
       const activity = computeDayActivity(all);
+      const inRange = (from: string, to: string) =>
+        all.filter((c) => {
+          const d = c.committedAt.slice(0, 10);
+          return d >= from && d <= to;
+        });
+      const selCommits = inRange(sel.from, sel.to);
+      // "Haftalık aktivite" grafiği her zaman bu haftanın gün dağılımı (periyottan bağımsız).
       const week = rangeFor("weekly", today);
-      const weekCommits = all.filter((c) => {
-        const d = c.committedAt.slice(0, 10);
-        return d >= week.from && d <= week.to;
-      });
+      const weekCommits = inRange(week.from, week.to);
       return {
-        weekStats: computeRangeStats(weekCommits),
+        periodStats: computeRangeStats(selCommits),
         weekActivity: weeklyBuckets(computeDayActivity(weekCommits)),
-        projects: computeProjectStats(weekCommits),
+        projects: computeProjectStats(selCommits),
         streak: computeStreak(activity.map((a) => a.date), today),
         heatmap21: fillCalendar(activity, shift(today, -20), today),
         recent,
@@ -59,21 +77,22 @@ export function useDashboard() {
 
 export interface StreakData {
   streak: StreakStats;
-  /** 20 hafta × 7 gün = 140 hücre (yeni sağda). */
-  calendar: DayActivity[];
+  /** GitHub tarzı yıllık katkı takvimi (~53 hafta). */
+  calendar: YearCalendar;
 }
 
-/** Streak ekranı: bir yıllık aktiviteden seri + 20 haftalık katkı takvimi. */
+/** Streak ekranı: bir yıllık aktiviteden seri + yıllık katkı takvimi. */
 export function useStreak() {
   const today = todayKey();
   return useQuery<StreakData>({
     queryKey: queryKeys.stats.streak(today),
     queryFn: async () => {
-      const all = await getCommitsByRange(shift(today, -364), today);
+      // Yıllık takvimi kapsayacak geniş pencere (54 hafta pay).
+      const all = await getCommitsByRange(shift(today, -378), today);
       const activity = computeDayActivity(all);
       return {
         streak: computeStreak(activity.map((a) => a.date), today),
-        calendar: fillCalendar(activity, shift(today, -139), today),
+        calendar: buildYearCalendar(activity, today),
       };
     },
   });

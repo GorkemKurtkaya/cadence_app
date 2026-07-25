@@ -159,6 +159,16 @@ export interface StreakStats {
   totalActiveDays: number;
 }
 
+/** GitHub tarzı yıllık katkı takvimi verisi (hafta sütunları × 7 gün satırı). */
+export interface YearCalendar {
+  /** Pazartesi-hizalı gün serisi (uzunluk ≈ weeks*7; son hafta bugünde biter/kısmi olabilir). */
+  days: DayActivity[];
+  /** Sütun (hafta) sayısı — ~53. */
+  weeks: number;
+  /** Ayın değiştiği sütunlar → üstteki ay etiketleri. */
+  months: { col: number; label: string }[];
+}
+
 /** Bir tarih aralığının toplamları (dashboard stat kartları). */
 export interface RangeStats {
   commits: number;

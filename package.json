@@ -1,7 +1,8 @@
 {
-  "name": "rapor-app",
+  "name": "cadence",
   "private": true,
   "version": "0.1.0",
+  "author": "Görkem Kurtkaya",
   "type": "module",
   "scripts": {
     "dev": "vite",

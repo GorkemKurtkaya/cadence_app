@@ -30,7 +30,7 @@ function metaFor(pathname: string): ScreenMeta {
   if (META[pathname]) return META[pathname];
   if (pathname.startsWith("/report/"))
     return { title: "Rapor", subtitle: "kayıtlı günlük rapor", controls: false };
-  return { title: "CommitFlow", subtitle: "", controls: false };
+  return { title: "Cadence", subtitle: "", controls: false };
 }
 
 export function Header() {

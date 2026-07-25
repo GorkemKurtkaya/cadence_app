@@ -31,6 +31,9 @@ interface AppState {
   setCommitArea: (a: CommitArea | null) => void;
   commitsExpandedAll: boolean;
   toggleExpandAll: () => void;
+  // "Commitlerimi Çek" ile seçilen görüntüleme aralığı (null = header periyot toggle'ı belirler).
+  commitRange: { from: string; to: string } | null;
+  setCommitRange: (r: { from: string; to: string } | null) => void;
 }
 
 export const useAppStore = create<AppState>((set) => ({
@@ -57,4 +60,6 @@ export const useAppStore = create<AppState>((set) => ({
   setCommitArea: (commitArea) => set({ commitArea }),
   commitsExpandedAll: false,
   toggleExpandAll: () => set((s) => ({ commitsExpandedAll: !s.commitsExpandedAll })),
+  commitRange: null,
+  setCommitRange: (commitRange) => set({ commitRange }),
 }));

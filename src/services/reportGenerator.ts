@@ -1,7 +1,7 @@
 // Günlük rapor orkestrasyonu: topla → prompt → Claude → parse → kaydet.
 import { getLogger } from "./logger";
 import { getSettings } from "./config";
-import { scanLocalCommits } from "./repoScanner";
+import { scanLocalCommits, scanLocalCommitsRange } from "./repoScanner";
 import { fetchGithubCommits, mergeCommits } from "./githubConnector";
 import { upsertRepo, saveCommits, saveReport } from "./storage";
 import { buildReportPrompt } from "./report/prompt";
@@ -20,6 +20,12 @@ export interface GenerateOptions {
 
 export interface ScanResult {
   date: string;
+  commits: CommitInfo[];
+}
+
+export interface ScanRangeResult {
+  from: string | null;
+  to: string;
   commits: CommitInfo[];
 }
 
@@ -56,6 +62,34 @@ export async function scanDay(
   await saveCommits(all);
 
   return { date, commits: all };
+}
+
+/**
+ * `[from..to]` aralığının yerel commit'lerini tarar ve depolar (geçmiş geri-doldurma).
+ * `from === null` → tüm geçmiş. GitHub geri-doldurma kapsam dışı (yalnız yerel git).
+ * `saveCommits` idempotent upsert olduğu için tekrar çekmek duplicate üretmez.
+ */
+export async function scanRange(
+  from: string | null,
+  to: string,
+  onProgress?: (step: ProgressStep) => void,
+): Promise<ScanRangeResult> {
+  const settings = await getSettings();
+
+  const { repos, commits } = await scanLocalCommitsRange(
+    settings.repoRoots,
+    from,
+    to,
+    (repoName) => onProgress?.({ kind: "scan", repoName }),
+    { allBranches: settings.scanAllBranches, onlyMine: settings.onlyMyCommits },
+  );
+  for (const repo of repos) await upsertRepo(repo);
+
+  onProgress?.({ kind: "save" });
+  await saveCommits(commits);
+  log.info(`${from ?? "başlangıç"}–${to}: ${commits.length} yerel commit kaydedildi`);
+
+  return { from, to, commits };
 }
 
 /** Günün raporunu uçtan uca üretir ve kaydeder. */

@@ -17,7 +17,10 @@ import type {
   RangeStats,
   ReportPeriod,
   StreakStats,
+  YearCalendar,
 } from "@/types";
+
+const MONTH_LABELS = ["Oca", "Şub", "Mar", "Nis", "May", "Haz", "Tem", "Ağu", "Eyl", "Eki", "Kas", "Ara"] as const;
 
 /** Bir commit'in gün anahtarı (YYYY-MM-DD). */
 function dayKey(iso: string): string {
@@ -160,6 +163,31 @@ export function fillCalendar(activity: DayActivity[], from: string, to: string):
     cursor = addDays(cursor, 1);
   }
   return out;
+}
+
+/**
+ * GitHub tarzı yıllık katkı takvimi kurar: son ~53 haftayı Pazartesi-hizalı olarak döndürür.
+ * `today` dışarıdan verilir (test edilebilirlik için). Gelecek günler doldurulmaz — seri bugünde biter.
+ */
+export function buildYearCalendar(activity: DayActivity[], today: string): YearCalendar {
+  // Bu haftanın Pazartesi'sinden 52 hafta geriye = 53 sütun (mevcut hafta dahil).
+  const firstMonday = startOfWeek(addDays(parseISO(today), -7 * 52), { weekStartsOn: 1 });
+  const days = fillCalendar(activity, format(firstMonday, "yyyy-MM-dd"), today);
+  const weeks = Math.ceil(days.length / 7);
+
+  const months: { col: number; label: string }[] = [];
+  let prevMonth = -1;
+  for (let w = 0; w < weeks; w++) {
+    const first = days[w * 7];
+    if (!first) break;
+    const month = parseISO(first.date).getMonth();
+    if (month !== prevMonth) {
+      months.push({ col: w, label: MONTH_LABELS[month] });
+      prevMonth = month;
+    }
+  }
+
+  return { days, weeks, months };
 }
 
 /** Aktivite sayısını 0–4 yoğunluk seviyesine (heatmap rengi) çevirir. */

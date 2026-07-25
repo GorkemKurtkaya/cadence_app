@@ -72,10 +72,8 @@ export function Sidebar() {
   return (
     <aside className="bg-sidebar flex w-[212px] shrink-0 flex-col gap-1 border-r p-3 pt-4.5">
       <div className="flex items-center gap-2.5 px-2 pt-1 pb-4">
-        <div className="bg-accent-green flex size-6.5 items-center justify-center rounded-md font-mono text-[13px] font-bold text-[#07130c]">
-          λ
-        </div>
-        <div className="text-foreground text-[14.5px] font-semibold">CommitFlow</div>
+        <img src="/logo.png" alt="Cadence" className="size-6.5 rounded-md" />
+        <div className="text-foreground text-[14.5px] font-semibold">Cadence</div>
       </div>
 
       {NAV.map((item) => (

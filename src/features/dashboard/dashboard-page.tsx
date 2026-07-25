@@ -1,18 +1,34 @@
 import { Link } from "@tanstack/react-router";
 import { StatCard, StatCardSkeleton } from "@/components/common/stat-card";
 import { ContributionHeatmap } from "@/components/common/contribution-heatmap";
-import { EmptyState } from "@/components/common/empty-state";
 import { ErrorAlert } from "@/components/common/error-alert";
 import { Skeleton } from "@/components/ui/skeleton";
+import { OnboardingWizard } from "@/features/dashboard/components/onboarding-wizard";
 import { useDashboard, type DashboardData } from "@/hooks/queries/use-stats";
+import { useAppStore } from "@/stores/use-app-store";
 import { signedCompact } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import { GitCommitHorizontal } from "lucide-react";
+import type { ReportPeriod } from "@/types";
 
 const PANEL = "bg-panel rounded-xl border p-4";
 
+// Seçili periyoda göre etiketler (üst stat kartları + proje dağılımı).
+const PERIOD_LABEL: Record<ReportPeriod, string> = {
+  daily: "Bugün",
+  weekly: "Bu hafta",
+  monthly: "Bu ay",
+  yearly: "Bu yıl",
+};
+const PERIOD_SUB: Record<ReportPeriod, string> = {
+  daily: "bugün",
+  weekly: "son 7 gün",
+  monthly: "bu ay",
+  yearly: "bu yıl",
+};
+
 export function DashboardPage() {
-  const { data, isLoading, isError, error } = useDashboard();
+  const period = useAppStore((s) => s.period);
+  const { data, isLoading, isError, error } = useDashboard(period);
 
   if (isError) {
     return (
@@ -24,24 +40,14 @@ export function DashboardPage() {
   if (isLoading || !data) return <DashboardSkeleton />;
 
   const empty = data.streak.totalActiveDays === 0 && data.recent.length === 0;
-  if (empty) {
-    return (
-      <div className="p-6">
-        <EmptyState
-          icon={<GitCommitHorizontal />}
-          title="Henüz veri yok"
-          description="Ayarlar'dan repo köklerini ekleyip sağ üstten Rapor Üret ile ilk taramanı yap."
-        />
-      </div>
-    );
-  }
+  if (empty) return <OnboardingWizard />;
 
   return (
     <div className="grid grid-cols-4 content-start gap-3.5 p-6">
       <StatCard
-        label="Bu hafta commit"
-        value={data.weekStats.commits}
-        sub="son 7 gün"
+        label={`${PERIOD_LABEL[period]} commit`}
+        value={data.periodStats.commits}
+        sub={PERIOD_SUB[period]}
         subTone="muted"
       />
 
@@ -49,13 +55,13 @@ export function DashboardPage() {
 
       <StatCard
         label="Değişen satır"
-        value={signedCompact(data.weekStats.additions)}
-        sub={`−${data.weekStats.deletions} silinen`}
+        value={signedCompact(data.periodStats.additions)}
+        sub={`−${data.periodStats.deletions} silinen`}
         subTone="red"
       />
 
       <WeeklyActivity data={data} />
-      <ProjectDistribution data={data} />
+      <ProjectDistribution data={data} period={period} />
       <RecentCommits data={data} />
     </div>
   );
@@ -111,13 +117,13 @@ function WeeklyActivity({ data }: { data: DashboardData }) {
 
 const BAR_COLORS = ["bg-[#4ade80]", "bg-[#60a5fa]", "bg-[#a78bfa]", "bg-[#f59e0b]"];
 
-function ProjectDistribution({ data }: { data: DashboardData }) {
+function ProjectDistribution({ data, period }: { data: DashboardData; period: ReportPeriod }) {
   const total = data.projects.reduce((n, p) => n + p.commits, 0) || 1;
   return (
     <div className={cn(PANEL, "col-span-2")}>
       <div className="mb-3.5 text-[13.5px] font-semibold text-[#c8cdd5]">Proje dağılımı</div>
       {data.projects.length === 0 ? (
-        <div className="text-muted-foreground text-xs">Bu hafta commit yok.</div>
+        <div className="text-muted-foreground text-xs">{PERIOD_LABEL[period]} commit yok.</div>
       ) : (
         <div className="flex flex-col gap-3.5">
           {data.projects.slice(0, 4).map((p, i) => (

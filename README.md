@@ -1,4 +1,4 @@
-# Rapor — Günlük Geliştirici Raporu
+# Cadence — Günlük Geliştirici Raporu
 
 Mac + Windows masaüstü uygulaması. Yereldeki git repolarını (ve opsiyonel GitHub'ı) tarar, günün
 commit'lerini **Claude'a** yollayıp **3 bölümlü günlük rapor** üretir (📝 Özet · 👔 Standup · 🔧 Teknik)

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   activityLevel,
+  buildYearCalendar,
   computeProjectStats,
   computeRangeStats,
   computeStreak,
@@ -115,6 +116,41 @@ describe("activityLevel", () => {
     expect(activityLevel(1)).toBe(1);
     expect(activityLevel(3)).toBe(2);
     expect(activityLevel(10)).toBe(4);
+  });
+});
+
+describe("buildYearCalendar", () => {
+  // 2026-07-24 Cuma. Bu haftanın Pzt'si 2026-07-20; 52 hafta geri = 2025-07-21 (Pzt).
+  it("Pazartesi hizalı başlar ve bugünde biter", () => {
+    const cal = buildYearCalendar([], "2026-07-24");
+    expect(cal.days[0].date).toBe("2025-07-21"); // Pazartesi
+    expect(cal.days[cal.days.length - 1].date).toBe("2026-07-24"); // bugün
+  });
+
+  it("53 sütun döner (son hafta kısmi, gelecek doldurulmaz)", () => {
+    const cal = buildYearCalendar([], "2026-07-24");
+    expect(cal.weeks).toBe(53);
+    // 52 tam hafta (364) + kısmi son hafta Pzt→Cum (5) = 369 gün.
+    expect(cal.days).toHaveLength(369);
+  });
+
+  it("aktiviteyi doğru güne yerleştirir", () => {
+    const cal = buildYearCalendar(
+      [{ date: "2026-07-24", count: 4, additions: 0, deletions: 0 }],
+      "2026-07-24",
+    );
+    expect(cal.days[cal.days.length - 1].count).toBe(4);
+  });
+
+  it("ay değişen sütunlara etiket koyar (ilk sütun dahil)", () => {
+    const cal = buildYearCalendar([], "2026-07-24");
+    expect(cal.months[0]).toEqual({ col: 0, label: "Tem" }); // ilk hafta Temmuz
+    // Art arda gelen etiketler farklı ayları gösterir (aynı ay üst üste tekrarlanmaz).
+    for (let i = 1; i < cal.months.length; i++) {
+      expect(cal.months[i].label).not.toBe(cal.months[i - 1].label);
+    }
+    // Bir yıllık aralık ~13 ay sınırı içerir.
+    expect(cal.months.length).toBeGreaterThanOrEqual(12);
   });
 });
 

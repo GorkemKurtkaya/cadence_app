@@ -14,7 +14,8 @@ export const queryKeys = {
   },
   stats: {
     all: ["stats"] as const,
-    dashboard: (today: string) => [...queryKeys.stats.all, "dashboard", today] as const,
+    dashboard: (today: string, period: string) =>
+      [...queryKeys.stats.all, "dashboard", today, period] as const,
     streak: (today: string) => [...queryKeys.stats.all, "streak", today] as const,
     projects: (from: string, to: string) => [...queryKeys.stats.all, "projects", from, to] as const,
   },

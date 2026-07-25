@@ -3,7 +3,7 @@ import Database from "@tauri-apps/plugin-sql";
 import { getLogger } from "./logger";
 
 const log = getLogger("db");
-const DB_URL = "sqlite:rapor.db";
+const DB_URL = "sqlite:cadence.db";
 
 let dbPromise: Promise<Database> | null = null;
 

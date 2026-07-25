@@ -21,7 +21,7 @@ export function ProjectsPage() {
   const period = useAppStore((s) => s.period);
   const openDrawer = useAppStore((s) => s.openDrawer);
   const today = todayKey();
-  const range = useMemo(() => rangeFor(period === "daily" ? "weekly" : period, today), [period, today]);
+  const range = useMemo(() => rangeFor(period, today), [period, today]);
   const { data: projects, isLoading, isError, error } = useProjects(range.from, range.to);
 
   return (

@@ -1,5 +1,6 @@
 import { StatCard, StatCardSkeleton } from "@/components/common/stat-card";
-import { ContributionHeatmap, HeatmapLegend } from "@/components/common/contribution-heatmap";
+import { HeatmapLegend } from "@/components/common/contribution-heatmap";
+import { YearHeatmap } from "@/components/common/year-heatmap";
 import { ErrorAlert } from "@/components/common/error-alert";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useStreak } from "@/hooks/queries/use-stats";
@@ -49,10 +50,10 @@ export function StreakPage() {
 
       <div className="bg-panel rounded-xl border p-5.5">
         <div className="mb-4.5 flex items-center justify-between">
-          <div className="text-sm font-semibold text-[#c8cdd5]">Katkı takvimi · son 20 hafta</div>
+          <div className="text-sm font-semibold text-[#c8cdd5]">Katkı takvimi · son 1 yıl</div>
           <HeatmapLegend />
         </div>
-        <ContributionHeatmap days={data.calendar} columns={20} />
+        <YearHeatmap calendar={data.calendar} />
       </div>
     </div>
   );

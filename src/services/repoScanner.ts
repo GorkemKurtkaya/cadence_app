@@ -142,6 +142,55 @@ export async function getCommitsForDate(
 }
 
 /**
+ * `[from..to]` aralığının commit'lerini tek bir repodan çeker (geçmiş geri-doldurma).
+ * `from === null` ise `--since` verilmez → reponun TÜM geçmişi (to tarihine kadar) taranır.
+ */
+export async function getCommitsForRange(
+  repo: Repo,
+  from: string | null,
+  to: string,
+  options: ScanOptions = DEFAULT_SCAN_OPTIONS,
+): Promise<CommitInfo[]> {
+  const until = `${to} 23:59:59`;
+
+  const args = ["log", `--until=${until}`, "--date=iso-strict", "--numstat", "--no-merges"];
+  // from null ise tüm geçmiş; değilse alt sınır.
+  if (from) args.push(`--since=${from} 00:00:00`);
+  // Tüm branch'ler: feature/PR branch'lerindeki commit'ler de görünür.
+  if (options.allBranches) args.push("--all");
+  // Sadece benim commit'lerim: reponun git email'iyle filtrele.
+  if (options.onlyMine) {
+    const email = await getGitEmail(repo.path);
+    if (email) args.push(`--author=${email}`);
+  }
+  args.push(GIT_LOG_FORMAT);
+
+  let out;
+  try {
+    out = await execCommand("git", args, { cwd: repo.path });
+  } catch (err) {
+    log.error(`git log çalıştırılamadı: ${repo.path}`, err);
+    return [];
+  }
+
+  if (out.code !== 0) {
+    log.warn(`git log hata kodu ${out.code}: ${repo.path}`, out.stderr);
+    return [];
+  }
+
+  const { project, layer } = deriveProject(repo.name);
+  return parseGitLog(out.stdout).map((c) => ({
+    ...c,
+    repoName: repo.name,
+    repoPath: repo.path,
+    project,
+    layer,
+    source: "local" as const,
+    diffSummary: summarizeFiles(c.files),
+  }));
+}
+
+/**
  * Belirli günün TÜM yerel commit'lerini tarar: kökleri gez → repoları bul → her repodan çek.
  * `onRepo` geri çağrısı ilerleme göstermek için opsiyoneldir.
  */
@@ -162,5 +211,30 @@ export async function scanLocalCommits(
 
   all.sort((a, b) => a.committedAt.localeCompare(b.committedAt));
   log.info(`${date} için ${all.length} yerel commit bulundu`);
+  return { repos, commits: all };
+}
+
+/**
+ * `[from..to]` aralığının TÜM yerel commit'lerini tarar (geçmiş geri-doldurma).
+ * Repo başına tek git-log çağrısı yapar. `from === null` → tüm geçmiş.
+ */
+export async function scanLocalCommitsRange(
+  repoRoots: string[],
+  from: string | null,
+  to: string,
+  onRepo?: (repoName: string) => void,
+  options: ScanOptions = DEFAULT_SCAN_OPTIONS,
+): Promise<{ repos: Repo[]; commits: CommitInfo[] }> {
+  const repos = await findGitRepos(repoRoots);
+  const all: CommitInfo[] = [];
+
+  for (const repo of repos) {
+    onRepo?.(repo.name);
+    const commits = await getCommitsForRange(repo, from, to, options);
+    all.push(...commits);
+  }
+
+  all.sort((a, b) => a.committedAt.localeCompare(b.committedAt));
+  log.info(`${from ?? "başlangıç"}–${to} için ${all.length} yerel commit bulundu`);
   return { repos, commits: all };
 }

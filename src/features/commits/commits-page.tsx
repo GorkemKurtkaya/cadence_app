@@ -1,15 +1,16 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { Search, Copy, ChevronsUpDown, GitCommitHorizontal } from "lucide-react";
+import { Search, Copy, ChevronsUpDown, GitCommitHorizontal, DownloadCloud, Loader2, X } from "lucide-react";
 import { CommitCard, commitToText } from "@/components/common/commit-card";
 import { EmptyState } from "@/components/common/empty-state";
 import { ErrorAlert } from "@/components/common/error-alert";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useCommitDays } from "@/hooks/queries/use-commits";
+import { useCommitDays, useScanCommits } from "@/hooks/queries/use-commits";
 import { useAppStore } from "@/stores/use-app-store";
 import { rangeFor } from "@/services/stats";
 import { todayKey } from "@/lib/date";
 import { signedCompact } from "@/lib/format";
+import { PULL_PRESETS, presetToRange, type PullPreset } from "@/lib/pull-presets";
 import { cn } from "@/lib/utils";
 import type { CommitArea, CommitListDay } from "@/types";
 
@@ -37,10 +38,41 @@ export function CommitsPage() {
   const setAreaFilter = useAppStore((s) => s.setCommitArea);
   const expandedAll = useAppStore((s) => s.commitsExpandedAll);
   const toggleExpandAll = useAppStore((s) => s.toggleExpandAll);
+  const commitRange = useAppStore((s) => s.commitRange);
+  const setCommitRange = useAppStore((s) => s.setCommitRange);
 
   const today = todayKey();
-  const range = useMemo(() => rangeFor(period === "daily" ? "weekly" : period, today), [period, today]);
+  // Çekilen aralık varsa listeyi o belirler; yoksa header periyot toggle'ı.
+  const range = useMemo(
+    () => commitRange ?? rangeFor(period, today),
+    [commitRange, period, today],
+  );
   const { data: days, isLoading, isError, error } = useCommitDays(range.from, range.to);
+
+  // Kullanıcı header'dan periyot değiştirince çekilen aralık geçersizleşir (toggle devralır).
+  useEffect(() => setCommitRange(null), [period, setCommitRange]);
+
+  const scan = useScanCommits();
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [pulledLabel, setPulledLabel] = useState<string | null>(null);
+
+  const runPull = (preset: PullPreset) => {
+    const { scanFrom, displayFrom, to } = presetToRange(preset, today);
+    scan.mutate(
+      { from: scanFrom, to },
+      {
+        onSuccess: (res) => {
+          setCommitRange({ from: displayFrom, to: today });
+          setPulledLabel(preset.label);
+          setPickerOpen(false);
+          toast.success(`${res.commits.length} commit çekildi · ${preset.label}`);
+        },
+        onError: (err) => {
+          toast.error(err instanceof Error ? err.message : "Commitler çekilemedi");
+        },
+      },
+    );
+  };
 
   const [openMap, setOpenMap] = useState<Record<string, boolean>>({});
   const isOpen = (sha: string) => openMap[sha] ?? expandedAll;
@@ -127,6 +159,19 @@ export function CommitsPage() {
           <span className="flex-1" />
           <button
             type="button"
+            onClick={() => setPickerOpen((o) => !o)}
+            disabled={scan.isPending}
+            className="text-accent-green flex items-center gap-1.5 rounded-md border border-[#274d34] bg-[#1b2f22] px-3 py-1.5 text-xs font-semibold disabled:opacity-60"
+          >
+            {scan.isPending ? (
+              <Loader2 className="size-3.5 animate-spin" />
+            ) : (
+              <DownloadCloud className="size-3.5" />
+            )}
+            {scan.isPending ? "Çekiliyor…" : "Commitlerimi Çek"}
+          </button>
+          <button
+            type="button"
             onClick={toggleExpandAll}
             className="text-secondary-foreground bg-[#161b21] flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-xs font-semibold"
           >
@@ -143,6 +188,41 @@ export function CommitsPage() {
             Toplu kopyala ({totalCommits})
           </button>
         </div>
+
+        {(pickerOpen || commitRange) && (
+          <div className="flex flex-wrap items-center gap-1.5">
+            {pickerOpen && (
+              <>
+                <span className="text-muted-foreground font-mono text-[11px]">Ne kadar geriye:</span>
+                {PULL_PRESETS.map((p) => (
+                  <button
+                    key={p.label}
+                    type="button"
+                    onClick={() => runPull(p)}
+                    disabled={scan.isPending}
+                    className={cn(chip, chipIdle, "disabled:opacity-60")}
+                  >
+                    {p.label}
+                  </button>
+                ))}
+              </>
+            )}
+            {commitRange && (
+              <button
+                type="button"
+                onClick={() => {
+                  setCommitRange(null);
+                  setPulledLabel(null);
+                }}
+                className={cn(chip, chipActive, "ml-auto flex items-center gap-1.5")}
+                title="Aralığı temizle, periyot toggle'ına dön"
+              >
+                aralık: {pulledLabel ?? `${commitRange.from} → ${commitRange.to}`}
+                <X className="size-3" />
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto px-6 py-4.5">
@@ -154,7 +234,7 @@ export function CommitsPage() {
           <EmptyState
             icon={<GitCommitHorizontal />}
             title="Commit bulunamadı"
-            description="Bu aralıkta kayıtlı commit yok ya da filtreler eşleşmedi. Sağ üstten Rapor Üret ile tarama yapabilirsin."
+            description="Bu aralıkta kayıtlı commit yok ya da filtreler eşleşmedi. Yukarıdaki Commitlerimi Çek ile eski commit'lerini içeri alabilirsin."
           />
         ) : (
           <div className="flex flex-col gap-4.5">

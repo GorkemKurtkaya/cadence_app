@@ -32,7 +32,7 @@ pub fn run() {
         .plugin(tauri_plugin_store::Builder::new().build())
         .plugin(
             tauri_plugin_sql::Builder::default()
-                .add_migrations("sqlite:rapor.db", migrations)
+                .add_migrations("sqlite:cadence.db", migrations)
                 .build(),
         )
         .run(tauri::generate_context!())

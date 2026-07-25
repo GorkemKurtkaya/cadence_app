@@ -3,7 +3,7 @@ import { cn } from "@/lib/utils";
 import type { DayActivity } from "@/types";
 
 // 0–4 yoğunluk seviyesi → renk (tasarım paleti).
-const LEVEL_BG = ["bg-[#161b21]", "bg-[#1d3a28]", "bg-[#2f7d4d]", "bg-[#43c46d]", "bg-[#4ade80]"] as const;
+export const LEVEL_BG = ["bg-[#161b21]", "bg-[#1d3a28]", "bg-[#2f7d4d]", "bg-[#43c46d]", "bg-[#4ade80]"] as const;
 
 interface HeatmapProps {
   days: DayActivity[];
