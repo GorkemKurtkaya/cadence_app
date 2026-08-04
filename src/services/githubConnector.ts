@@ -56,7 +56,7 @@ export async function fetchGithubCommits(date: string): Promise<CommitInfo[]> {
 
     return items.map((it) => {
       const lines = it.commit.message.split("\n");
-      const { project, layer } = deriveProject(it.repository.name);
+      const { project, layer } = deriveProject(it.repository.name, settings.projectAliases);
       return {
         sha: it.sha,
         committedAt: it.commit.author.date,

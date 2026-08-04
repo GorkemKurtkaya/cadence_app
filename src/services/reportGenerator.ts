@@ -4,8 +4,9 @@ import { getSettings } from "./config";
 import { scanLocalCommits, scanLocalCommitsRange } from "./repoScanner";
 import { fetchGithubCommits, mergeCommits } from "./githubConnector";
 import { upsertRepo, saveCommits, saveReport } from "./storage";
-import { buildReportPrompt } from "./report/prompt";
+import { buildReportPrompt, DEFAULT_PROMPT_TEMPLATE } from "./report/prompt";
 import { parseReportSections } from "./report/parse";
+import { filterBySelectedShas } from "./report/select";
 import { runClaude } from "./claudeRunner";
 import type { CommitInfo, DailyReport, ReportLength, ReportPeriod, ReportTone } from "@/types";
 
@@ -16,6 +17,8 @@ export interface GenerateOptions {
   period?: ReportPeriod;
   length?: ReportLength;
   tone?: ReportTone;
+  /** Yalnız bu SHA'lardaki commit'ler rapora girer. Boş/undefined → hepsi. */
+  selectedShas?: string[];
 }
 
 export interface ScanResult {
@@ -51,7 +54,11 @@ export async function scanDay(
     settings.repoRoots,
     date,
     (repoName) => onProgress?.({ kind: "scan", repoName }),
-    { allBranches: settings.scanAllBranches, onlyMine: settings.onlyMyCommits },
+    {
+      allBranches: settings.scanAllBranches,
+      onlyMine: settings.onlyMyCommits,
+      aliases: settings.projectAliases,
+    },
   );
   for (const repo of repos) await upsertRepo(repo);
 
@@ -81,7 +88,11 @@ export async function scanRange(
     from,
     to,
     (repoName) => onProgress?.({ kind: "scan", repoName }),
-    { allBranches: settings.scanAllBranches, onlyMine: settings.onlyMyCommits },
+    {
+      allBranches: settings.scanAllBranches,
+      onlyMine: settings.onlyMyCommits,
+      aliases: settings.projectAliases,
+    },
   );
   for (const repo of repos) await upsertRepo(repo);
 
@@ -98,7 +109,9 @@ export async function generateDailyReport(
   onProgress?: (step: ProgressStep) => void,
   opts: GenerateOptions = {},
 ): Promise<GenerateResult> {
-  const { commits } = await scanDay(date, onProgress);
+  const { commits: scanned } = await scanDay(date, onProgress);
+  // Seçili SHA'lar verildiyse yalnız onları al; boşsa o günün tümü.
+  const commits = filterBySelectedShas(scanned, opts.selectedShas);
   const settings = await getSettings();
   const period = opts.period ?? settings.defaultPeriod;
   const length = opts.length ?? settings.defaultLength;
@@ -127,7 +140,8 @@ export async function generateDailyReport(
   const prompt = buildReportPrompt(date, commits, {
     sections: settings.reportSections,
     customInstructions: settings.customInstructions,
-    template: settings.promptTemplate,
+    // Boş template → changelog varsayılanı (Ayarlar önizlemesindeki effectiveTemplate ile tutarlı).
+    template: settings.promptTemplate?.trim() || DEFAULT_PROMPT_TEMPLATE,
     period,
     length,
     tone,

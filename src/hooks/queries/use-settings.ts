@@ -18,7 +18,13 @@ export function useSaveSettings() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (patch: Partial<AppSettings>) => saveSettings(patch),
-    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.settings.app() }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: queryKeys.settings.app() });
+      // projectAliases proje adı/gruplamayı etkiliyor → türetilmiş ekranları da tazele.
+      qc.invalidateQueries({ queryKey: queryKeys.stats.all });
+      qc.invalidateQueries({ queryKey: queryKeys.commits.all });
+      qc.invalidateQueries({ queryKey: queryKeys.reports.all });
+    },
   });
 }
 

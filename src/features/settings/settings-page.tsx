@@ -9,8 +9,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { SwitchRow } from "@/components/common/switch";
 import { SecretField } from "./components/secrets-form";
 import { useSettings, useSaveSettings, useToolStatus } from "@/hooks/queries/use-settings";
+import { useRepos } from "@/hooks/queries/use-repos";
 import { settingsFormSchema, parseRepoRoots, type SettingsFormValues } from "@/lib/validations/settings";
 import { DEFAULT_PROMPT_TEMPLATE, PROMPT_VARS, estimateTokens } from "@/services/report/prompt";
+import { deriveProject } from "@/services/git/project";
 import { pickDirectory } from "@/services/dialog";
 import { cn } from "@/lib/utils";
 
@@ -53,6 +55,7 @@ export function SettingsPage() {
   const { data: settings } = useSettings();
   const save = useSaveSettings();
   const { data: status, refetch: refetchStatus, isFetching: statusFetching } = useToolStatus();
+  const { data: repos } = useRepos();
   const [advOpen, setAdvOpen] = useState(false);
 
   const form = useForm<SettingsFormValues>({
@@ -72,7 +75,8 @@ export function SettingsPage() {
       defaultPeriod: "daily",
       defaultLength: "detailed",
       defaultTone: "",
-      promptTemplate: "",
+      promptTemplate: DEFAULT_PROMPT_TEMPLATE,
+      projectAliases: {},
     },
   });
 
@@ -93,7 +97,8 @@ export function SettingsPage() {
       defaultPeriod: settings.defaultPeriod,
       defaultLength: settings.defaultLength,
       defaultTone: settings.defaultTone,
-      promptTemplate: settings.promptTemplate,
+      promptTemplate: settings.promptTemplate?.trim() || DEFAULT_PROMPT_TEMPLATE,
+      projectAliases: settings.projectAliases ?? {},
     });
   }, [settings, form]);
 
@@ -117,6 +122,12 @@ export function SettingsPage() {
         defaultLength: v.defaultLength,
         defaultTone: v.defaultTone,
         promptTemplate: v.promptTemplate.trim(),
+        // Boş alias'ları kaydetme (türetilen ada geri düşsün).
+        projectAliases: Object.fromEntries(
+          Object.entries(v.projectAliases)
+            .map(([repo, alias]) => [repo, alias.trim()] as const)
+            .filter(([, alias]) => alias.length > 0),
+        ),
       },
       {
         onSuccess: () => toast.success("Ayarlar kaydedildi."),
@@ -170,6 +181,15 @@ export function SettingsPage() {
   };
   const removeRoot = (dir: string) => {
     form.setValue("repoRootsText", roots.filter((r) => r !== dir).join("\n"), { shouldDirty: true });
+  };
+
+  const aliases = form.watch("projectAliases");
+  const setAlias = (repo: string, value: string) => {
+    form.setValue(
+      "projectAliases",
+      { ...form.getValues("projectAliases"), [repo]: value },
+      { shouldDirty: true },
+    );
   };
 
   const insertVar = (v: string) => {
@@ -267,7 +287,8 @@ export function SettingsPage() {
           rows={12}
           className="min-h-[220px] bg-[#0b0f13] font-mono text-[12.5px] leading-relaxed"
           placeholder={DEFAULT_PROMPT_TEMPLATE}
-          {...form.register("promptTemplate")}
+          value={template ?? ""}
+          onChange={(e) => form.setValue("promptTemplate", e.target.value, { shouldDirty: true })}
         />
         <div className="mt-3 flex items-center gap-2">
           <Button type="submit" size="sm" disabled={save.isPending}>
@@ -360,6 +381,38 @@ export function SettingsPage() {
         </div>
       </Panel>
 
+      {/* Proje Adları */}
+      <Panel
+        title="Proje Adları"
+        desc="Repo klasör adı gerçek proje adından farklıysa buraya yaz; rapor ve ekranlar bu ada göre gruplar."
+      >
+        {repos && repos.length > 0 ? (
+          <div className="flex flex-col gap-2">
+            {repos.map((r) => (
+              <div key={r.path} className="flex items-center gap-2.5">
+                <span
+                  className="text-muted-foreground min-w-0 flex-1 truncate font-mono text-[12.5px]"
+                  title={r.path}
+                >
+                  {r.name}
+                </span>
+                <span className="text-muted-foreground shrink-0 text-[12.5px]">→</span>
+                <Input
+                  className="flex-1"
+                  placeholder={deriveProject(r.name).project}
+                  value={aliases?.[r.name] ?? ""}
+                  onChange={(e) => setAlias(r.name, e.target.value)}
+                />
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-muted-foreground text-[12.5px]">
+            Repolar ilk "Commitlerimi Çek" sonrası burada görünür.
+          </p>
+        )}
+      </Panel>
+
       {/* Gelişmiş */}
       <div className="bg-panel rounded-xl border p-5.5">
         <button
@@ -446,7 +499,8 @@ export function SettingsPage() {
                 <Textarea
                   rows={2}
                   placeholder="örn. Daha kısa yaz, emoji kullanma…"
-                  {...form.register("customInstructions")}
+                  value={form.watch("customInstructions") ?? ""}
+                  onChange={(e) => form.setValue("customInstructions", e.target.value, { shouldDirty: true })}
                 />
               </div>
             </div>

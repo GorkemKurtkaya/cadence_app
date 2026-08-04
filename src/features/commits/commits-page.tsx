@@ -1,11 +1,25 @@
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { Search, Copy, ChevronsUpDown, GitCommitHorizontal, DownloadCloud, Loader2, X } from "lucide-react";
+import {
+  Search,
+  Copy,
+  ChevronsUpDown,
+  CheckSquare,
+  GitCommitHorizontal,
+  DownloadCloud,
+  Loader2,
+  X,
+  Layers,
+  Server,
+  Monitor,
+  type LucideIcon,
+} from "lucide-react";
 import { CommitCard, commitToText } from "@/components/common/commit-card";
 import { EmptyState } from "@/components/common/empty-state";
 import { ErrorAlert } from "@/components/common/error-alert";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useCommitDays, useScanCommits } from "@/hooks/queries/use-commits";
+import { useDragScroll } from "@/hooks/use-drag-scroll";
 import { useAppStore } from "@/stores/use-app-store";
 import { rangeFor } from "@/services/stats";
 import { todayKey } from "@/lib/date";
@@ -28,6 +42,13 @@ const chip = "rounded-md border px-3 py-1.5 font-mono text-xs transition-colors"
 const chipActive = "border-[#274d34] bg-[#1b2f22] text-accent-green";
 const chipIdle = "bg-[#161b21] text-[#7b828f] hover:text-foreground";
 
+// Katman (area) filtresi: Tümü / Backend / Frontend — ikonlu.
+const AREA_FILTERS: Array<{ value: CommitArea | null; label: string; Icon: LucideIcon }> = [
+  { value: null, label: "Tümü", Icon: Layers },
+  { value: "be", label: "Backend", Icon: Server },
+  { value: "fe", label: "Frontend", Icon: Monitor },
+];
+
 export function CommitsPage() {
   const period = useAppStore((s) => s.period);
   const search = useAppStore((s) => s.commitSearch);
@@ -40,6 +61,9 @@ export function CommitsPage() {
   const toggleExpandAll = useAppStore((s) => s.toggleExpandAll);
   const commitRange = useAppStore((s) => s.commitRange);
   const setCommitRange = useAppStore((s) => s.setCommitRange);
+  const selectedShas = useAppStore((s) => s.selectedShas);
+  const toggleCommitSelected = useAppStore((s) => s.toggleCommitSelected);
+  const clearCommitSelection = useAppStore((s) => s.clearCommitSelection);
 
   const today = todayKey();
   // Çekilen aralık varsa listeyi o belirler; yoksa header periyot toggle'ı.
@@ -53,6 +77,7 @@ export function CommitsPage() {
   useEffect(() => setCommitRange(null), [period, setCommitRange]);
 
   const scan = useScanCommits();
+  const projectScroll = useDragScroll();
   const [pickerOpen, setPickerOpen] = useState(false);
   const [pulledLabel, setPulledLabel] = useState<string | null>(null);
 
@@ -112,6 +137,21 @@ export function CommitsPage() {
     toast.success(`${totalCommits} commit kopyalandı`);
   };
 
+  // Görünen (filtrelenmiş) commit'ler arasından seçili olanları say — "temizle" bunları kapsar.
+  const selectedCount = filtered.reduce(
+    (n, d) => n + d.items.filter((c) => selectedShas.has(c.sha)).length,
+    0,
+  );
+  const copySelected = async () => {
+    const text = filtered
+      .map((d) => ({ ...d, items: d.items.filter((c) => selectedShas.has(c.sha)) }))
+      .filter((d) => d.items.length > 0)
+      .map((d) => `${dayLabel(d.date, today)}\n\n${d.items.map(commitToText).join("\n\n---\n\n")}`)
+      .join("\n\n\n");
+    await navigator.clipboard.writeText(text);
+    toast.success(`${selectedCount} commit kopyalandı`);
+  };
+
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="flex flex-col gap-2.5 border-b px-6 py-3.5">
@@ -124,35 +164,37 @@ export function CommitsPage() {
             className="text-foreground placeholder:text-muted-foreground w-full bg-transparent font-mono text-[12.5px] outline-none"
           />
         </div>
+        {/* Proje filtreleri: çok olabildiği için kendi satırında yatay kaydırmalı (tekerlek + sürükle). */}
+        <div {...projectScroll} className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1 select-none">
+          <button
+            type="button"
+            onClick={() => setProjectFilter(null)}
+            className={cn(chip, "shrink-0", projectFilter === null ? chipActive : chipIdle)}
+          >
+            Tümü
+          </button>
+          {projects.map((p) => (
+            <button
+              key={p}
+              type="button"
+              onClick={() => setProjectFilter(p)}
+              className={cn(chip, "shrink-0 whitespace-nowrap", projectFilter === p ? chipActive : chipIdle)}
+            >
+              {p}
+            </button>
+          ))}
+        </div>
         <div className="flex flex-wrap items-center gap-2.5">
           <div className="flex gap-1.5">
-            <button
-              type="button"
-              onClick={() => setProjectFilter(null)}
-              className={cn(chip, projectFilter === null ? chipActive : chipIdle)}
-            >
-              Tümü
-            </button>
-            {projects.map((p) => (
+            {AREA_FILTERS.map(({ value, label, Icon }) => (
               <button
-                key={p}
+                key={label}
                 type="button"
-                onClick={() => setProjectFilter(p)}
-                className={cn(chip, projectFilter === p ? chipActive : chipIdle)}
+                onClick={() => setAreaFilter(value)}
+                className={cn(chip, "flex items-center gap-1.5", areaFilter === value ? chipActive : chipIdle)}
               >
-                {p}
-              </button>
-            ))}
-          </div>
-          <div className="flex gap-1.5">
-            {(["be", "fe"] as CommitArea[]).map((a) => (
-              <button
-                key={a}
-                type="button"
-                onClick={() => setAreaFilter(areaFilter === a ? null : a)}
-                className={cn(chip, areaFilter === a ? chipActive : chipIdle)}
-              >
-                {a}
+                <Icon className="size-3.5" />
+                {label}
               </button>
             ))}
           </div>
@@ -223,6 +265,32 @@ export function CommitsPage() {
             )}
           </div>
         )}
+
+        {selectedCount > 0 && (
+          <div className="flex items-center gap-2.5 rounded-lg border border-[#274d34] bg-[#1b2f22] px-3 py-2">
+            <CheckSquare className="text-accent-green size-3.5" />
+            <span className="text-accent-green font-mono text-xs font-semibold">
+              {selectedCount} seçili
+            </span>
+            <span className="flex-1" />
+            <button
+              type="button"
+              onClick={copySelected}
+              className="text-accent-green flex items-center gap-1.5 rounded-md border border-[#274d34] bg-[#152318] px-3 py-1.5 text-xs font-semibold"
+            >
+              <Copy className="size-3.5" />
+              Seçilenleri Kopyala
+            </button>
+            <button
+              type="button"
+              onClick={clearCommitSelection}
+              className="text-muted-foreground hover:text-foreground flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-xs font-semibold"
+            >
+              <X className="size-3.5" />
+              Temizle
+            </button>
+          </div>
+        )}
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto px-6 py-4.5">
@@ -239,7 +307,15 @@ export function CommitsPage() {
         ) : (
           <div className="flex flex-col gap-4.5">
             {filtered.map((d) => (
-              <DayGroup key={d.date} day={d} today={today} isOpen={isOpen} toggle={toggle} />
+              <DayGroup
+                key={d.date}
+                day={d}
+                today={today}
+                isOpen={isOpen}
+                toggle={toggle}
+                selectedShas={selectedShas}
+                onSelect={toggleCommitSelected}
+              />
             ))}
           </div>
         )}
@@ -253,11 +329,15 @@ function DayGroup({
   today,
   isOpen,
   toggle,
+  selectedShas,
+  onSelect,
 }: {
   day: CommitListDay;
   today: string;
   isOpen: (sha: string) => boolean;
   toggle: (sha: string) => void;
+  selectedShas: Set<string>;
+  onSelect: (sha: string) => void;
 }) {
   const copyDay = async () => {
     await navigator.clipboard.writeText(
@@ -284,7 +364,14 @@ function DayGroup({
       </div>
       <div className="flex flex-col gap-2.5">
         {day.items.map((c) => (
-          <CommitCard key={`${c.source}-${c.sha}`} commit={c} open={isOpen(c.sha)} onToggle={() => toggle(c.sha)} />
+          <CommitCard
+            key={`${c.source}-${c.sha}`}
+            commit={c}
+            open={isOpen(c.sha)}
+            onToggle={() => toggle(c.sha)}
+            selected={selectedShas.has(c.sha)}
+            onSelect={() => onSelect(c.sha)}
+          />
         ))}
       </div>
     </div>

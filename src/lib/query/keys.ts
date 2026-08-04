@@ -24,4 +24,8 @@ export const queryKeys = {
     app: () => [...queryKeys.settings.all, "app"] as const,
     status: () => [...queryKeys.settings.all, "status"] as const,
   },
+  repos: {
+    all: ["repos"] as const,
+    list: () => [...queryKeys.repos.all, "list"] as const,
+  },
 } as const;

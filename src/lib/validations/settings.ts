@@ -20,6 +20,8 @@ export const settingsFormSchema = z.object({
   defaultLength: z.enum(["short", "medium", "detailed"]),
   defaultTone: z.string(),
   promptTemplate: z.string(),
+  // Repo adı → gerçek proje adı eşlemesi
+  projectAliases: z.record(z.string(), z.string()),
 });
 
 export type SettingsFormValues = z.infer<typeof settingsFormSchema>;

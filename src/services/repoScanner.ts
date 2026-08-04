@@ -83,6 +83,8 @@ export interface ScanOptions {
   allBranches: boolean;
   /** Yalnızca reponun git email'iyle atılan commit'ler (takım arkadaşlarını dışla). */
   onlyMine: boolean;
+  /** Repo adı → gerçek proje adı eşlemesi (proje adı türetmesinde kullanılır). */
+  aliases?: Record<string, string>;
 }
 
 export const DEFAULT_SCAN_OPTIONS: ScanOptions = { allBranches: true, onlyMine: true };
@@ -129,7 +131,7 @@ export async function getCommitsForDate(
     return [];
   }
 
-  const { project, layer } = deriveProject(repo.name);
+  const { project, layer } = deriveProject(repo.name, options.aliases);
   return parseGitLog(out.stdout).map((c) => ({
     ...c,
     repoName: repo.name,
@@ -178,7 +180,7 @@ export async function getCommitsForRange(
     return [];
   }
 
-  const { project, layer } = deriveProject(repo.name);
+  const { project, layer } = deriveProject(repo.name, options.aliases);
   return parseGitLog(out.stdout).map((c) => ({
     ...c,
     repoName: repo.name,

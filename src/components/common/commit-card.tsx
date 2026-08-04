@@ -15,10 +15,13 @@ interface CommitCardProps {
   commit: CommitRow;
   open: boolean;
   onToggle: () => void;
+  /** Verilirse kartın başında seçim kutucuğu gösterilir (kopyala/rapor seçimi için). */
+  selected?: boolean;
+  onSelect?: () => void;
 }
 
 /** Commitlerim ekranındaki açılır commit kartı. */
-export function CommitCard({ commit: c, open, onToggle }: CommitCardProps) {
+export function CommitCard({ commit: c, open, onToggle, selected, onSelect }: CommitCardProps) {
   const [copied, setCopied] = useState(false);
   const onCopy = async () => {
     await navigator.clipboard.writeText(commitToText(c));
@@ -27,8 +30,24 @@ export function CommitCard({ commit: c, open, onToggle }: CommitCardProps) {
   };
 
   return (
-    <div className="bg-panel rounded-xl border p-4">
+    <div className={cn("bg-panel rounded-xl border p-4", selected && "border-[#274d34]")}>
       <div className="mb-2 flex items-center gap-2.5">
+        {onSelect ? (
+          <button
+            type="button"
+            onClick={onSelect}
+            aria-pressed={selected}
+            title={selected ? "Seçimi kaldır" : "Seç"}
+            className={cn(
+              "flex size-4 shrink-0 items-center justify-center rounded border transition-colors",
+              selected
+                ? "border-[#274d34] bg-[#1b2f22] text-accent-green"
+                : "text-transparent hover:border-[#3a4450]",
+            )}
+          >
+            <Check className="size-3" />
+          </button>
+        ) : null}
         <button
           type="button"
           onClick={onToggle}

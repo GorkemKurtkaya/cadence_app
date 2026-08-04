@@ -17,6 +17,10 @@ interface AppState {
   openDrawer: () => void;
   closeDrawer: () => void;
   toggleDrawer: () => void;
+  // Raporun daraltıldığı proje (null = tüm projeler). Proje kartından "Rapor Üret" ile set edilir.
+  reportProjectScope: string | null;
+  setReportProjectScope: (project: string | null) => void;
+  openDrawerForProject: (project: string) => void;
   reportLength: ReportLength;
   setReportLength: (l: ReportLength) => void;
   reportTone: ReportTone;
@@ -31,6 +35,10 @@ interface AppState {
   setCommitArea: (a: CommitArea | null) => void;
   commitsExpandedAll: boolean;
   toggleExpandAll: () => void;
+  // Commitlerim ekranında kopyala için seçili commit'ler (opt-in). Boş → hepsi.
+  selectedShas: Set<string>;
+  toggleCommitSelected: (sha: string) => void;
+  clearCommitSelection: () => void;
   // "Commitlerimi Çek" ile seçilen görüntüleme aralığı (null = header periyot toggle'ı belirler).
   commitRange: { from: string; to: string } | null;
   setCommitRange: (r: { from: string; to: string } | null) => void;
@@ -44,9 +52,13 @@ export const useAppStore = create<AppState>((set) => ({
   setPeriod: (period) => set({ period }),
 
   drawerOpen: false,
-  openDrawer: () => set({ drawerOpen: true }),
+  // Genel açılış → scope sıfırlanır (tüm projeler dahil).
+  openDrawer: () => set({ drawerOpen: true, reportProjectScope: null }),
   closeDrawer: () => set({ drawerOpen: false }),
   toggleDrawer: () => set((s) => ({ drawerOpen: !s.drawerOpen })),
+  reportProjectScope: null,
+  setReportProjectScope: (reportProjectScope) => set({ reportProjectScope }),
+  openDrawerForProject: (project) => set({ drawerOpen: true, reportProjectScope: project }),
   reportLength: "detailed",
   setReportLength: (reportLength) => set({ reportLength }),
   reportTone: DEFAULT_TONE,
@@ -60,6 +72,15 @@ export const useAppStore = create<AppState>((set) => ({
   setCommitArea: (commitArea) => set({ commitArea }),
   commitsExpandedAll: false,
   toggleExpandAll: () => set((s) => ({ commitsExpandedAll: !s.commitsExpandedAll })),
+  selectedShas: new Set<string>(),
+  toggleCommitSelected: (sha) =>
+    set((s) => {
+      const next = new Set(s.selectedShas);
+      if (next.has(sha)) next.delete(sha);
+      else next.add(sha);
+      return { selectedShas: next };
+    }),
+  clearCommitSelection: () => set({ selectedShas: new Set<string>() }),
   commitRange: null,
   setCommitRange: (commitRange) => set({ commitRange }),
 }));

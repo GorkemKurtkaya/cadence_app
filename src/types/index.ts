@@ -101,6 +101,8 @@ export interface AppSettings {
   defaultTone: ReportTone;
   /** Düzenlenebilir rapor promptu. Boşsa dahili varsayılan (buildReportPrompt) kullanılır. */
   promptTemplate: string;
+  /** Repo adı → gerçek proje adı eşlemesi. Boşsa proje adı repo adından türetilir. */
+  projectAliases: Record<string, string>;
 }
 
 /** Varsayılan rapor tonu. */
@@ -120,6 +122,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   defaultLength: "detailed",
   defaultTone: DEFAULT_TONE,
   promptTemplate: "",
+  projectAliases: {},
 };
 
 /** Geçmişte saklanan tek commit satırı (liste görünümü için). */

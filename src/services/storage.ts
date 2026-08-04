@@ -1,6 +1,7 @@
 // SQLite CRUD katmanı — commit ve rapor geçmişi.
 import { getDb } from "./db";
 import { getLogger } from "./logger";
+import { getSettings } from "./config";
 import { deriveProject } from "./git/project";
 import { deriveArea } from "./git/area";
 import { parseSummaryPaths } from "./git/parseGitLog";
@@ -16,7 +17,7 @@ import type {
 const log = getLogger("storage");
 
 /** DB satırını (diff_summary dahil) zenginleştirilmiş CommitRow'a çevirir. */
-function rowToCommitRow(r: Record<string, unknown>): CommitRow {
+function rowToCommitRow(r: Record<string, unknown>, aliases?: Record<string, string>): CommitRow {
   const repoName = String(r.repo_name ?? "?");
   const paths = parseSummaryPaths(r.diff_summary as string | null);
   return {
@@ -30,7 +31,7 @@ function rowToCommitRow(r: Record<string, unknown>): CommitRow {
     deletions: Number(r.deletions),
     source: (r.source as CommitRow["source"]) ?? "local",
     repoName,
-    project: deriveProject(repoName).project,
+    project: deriveProject(repoName, aliases).project,
     area: deriveArea(paths),
     paths,
   };
@@ -125,7 +126,8 @@ export async function getCommitsByDate(date: string): Promise<CommitRow[]> {
      ORDER BY c.committed_at ASC`,
     [date],
   );
-  return rows.map(rowToCommitRow);
+  const { projectAliases } = await getSettings();
+  return rows.map((r) => rowToCommitRow(r, projectAliases));
 }
 
 /** Bir tarih aralığındaki (from..to, dahil) commit'leri döner. */
@@ -137,7 +139,8 @@ export async function getCommitsByRange(from: string, to: string): Promise<Commi
      ORDER BY c.committed_at DESC`,
     [from, to],
   );
-  return rows.map(rowToCommitRow);
+  const { projectAliases } = await getSettings();
+  return rows.map((r) => rowToCommitRow(r, projectAliases));
 }
 
 /** En son N commit'i (yeni→eski) döner — dashboard feed'i için. */
@@ -149,7 +152,8 @@ export async function getRecentCommits(limit = 6): Promise<CommitRow[]> {
      LIMIT $1`,
     [limit],
   );
-  return rows.map(rowToCommitRow);
+  const { projectAliases } = await getSettings();
+  return rows.map((r) => rowToCommitRow(r, projectAliases));
 }
 
 // ---- Reports ----

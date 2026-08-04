@@ -33,20 +33,35 @@ export const PROMPT_VARS = [
   "{{ton}}",
 ] as const;
 
-/** Düzenlenebilir varsayılan rapor promptu (tasarımdaki promptText). */
-export const DEFAULT_PROMPT_TEMPLATE = `Sen benim geliştirici günlüğümü yazan asistanımsın. Aşağıdaki commitlere bakarak {{periyot}} rapor yaz.
+/** Düzenlenebilir varsayılan rapor promptu (release-notes / changelog tarzı, few-shot örnekli). */
+export const DEFAULT_PROMPT_TEMPLATE = `Sen bir yazılım geliştiricinin çalışma asistanısın. Aşağıdaki git commit'lerine bakarak release-notes / changelog tarzında, "aptala anlatır gibi" kısa ve net bir {{periyot}} rapor üret.
 
 KURALLAR
-- Birinci tekil şahıs, kendi ağzımdan yaz ("Bugün ... ekledim", "... hatasını çözdüm").
-- Her commit'in hem BAŞLIĞINI hem AÇIKLAMASINI (body) oku; asıl detay açıklamada, sadece başlığa bakma.
-- Teknik jargonu sadeleştir; yaptığım işin NE İŞE YARADIĞINI anlat.
-- Uzunluk: {{uzunluk}} · Ton: {{ton}}
+- Her commit'in hem başlığını hem açıklamasını (body) oku; asıl detay açıklamada, sadece başlığa bakma.
+- Commit'leri projeye göre grupla. Her proje kendi adıyla ayrı bir satır başlığı olsun.
+- Her projenin altında ilgili katmanı "Backend" / "Frontend" satırıyla ayır (yalnız o katmanda iş varsa).
+- Her madde şu kalıpta olsun: "Kısa Özellik Adı: özelliğin ne yaptığını / ne işe yaradığını anlatan net açıklama." Yani 2-4 kelimelik özellik adı + iki nokta + açıklama.
+- Etiket, özelliğin kısa ve anlaşılır adı olsun (ör. Taslak Yönetimi, Canlı Aktivite Paneli, Liste Dolgusu).
+- Açıklamayı edilgen / nötr yaz ("...eklendi", "...kuruldu", "...hale getirildi", "...entegre edildi") — ben dili kullanma ("ekledim" deme).
+- Teknik jargonu sadeleştir, teknik olmayan biri de anlasın; ama teknik olarak doğru kal. Ham commit mesajını kopyalama; cümleyi commit konusu + açıklaması + değişen dosyalara bakarak kur.
+- Hiçbir anlamlı özellik atlanmasın; kısa tut ama her işi kapsa. İlişkili küçük commit'leri tek maddede birleştirebilirsin.
+- Küçük hata düzeltmelerini tek maddede topla: "Hata Çözümleri: ... giderildi, ... eklendi, ... çözüldü."
+- Açıklamaların uzunluğu şu kurala uysun → Uzunluk: {{uzunluk}} · Ton: {{ton}}
+- ÇOK ÖNEMLİ: Markdown KULLANMA. ##, **, > veya benzeri işaret yok. Sadece düz metin. Başlıklar düz satır, maddeler tek "- " ile başlasın.
 
-FORMAT
-1. Tek cümlelik özet (günün ana teması).
-2. Her proje için ayrı başlık: proje adı, altında Backend / Frontend alt başlıkları.
-3. Maddeler kısa ve sonuç odaklı olsun; commit hash yazma.
-4. Sonunda "Yarın" başlığıyla 1–2 cümlelik plan.
+ÖRNEK BİÇİM (yalnızca gruplama ve satır biçimini gösterir; maddelerin UZUNLUĞUNU örnekten değil, yukarıdaki Uzunluk kuralından al — bu örnekteki maddeler "orta" uzunluktadır, "kısa" seçiliyse çok daha kısa yaz)
+Novelify
+Backend
+- Taslak Yönetimi: Adminlere, yazarların taslak bölümlerini doğrudan düzenleme, silme ve sıralama yetkisi eklendi.
+- Liste Dolgusu: "Çok Satanlar" gibi eksik kalabilen sıralama listelerini en çok okunanlarla 50'ye tamamlayan bir mantık kuruldu.
+
+Frontend
+- Görsel Canlı Akış: Canlı etkinlik ekranındaki düz metinler; kitap kapağı, okuma yüzdesi çubuğu ve paket rozetleriyle görselleştirildi.
+
+Fastdrama
+Frontend
+- Canlı Aktivite Paneli: Anlık kullanıcı hareketlerini ve bulundukları ekranları saniye saniye gösteren canlı izleme sayfası eklendi.
+- Hata Çözümleri: Çeviri hataları giderildi, kopan canlı bağlantılara oto-yeniden bağlanma eklendi, render sorunları çözüldü.
 
 VERİ
 Tarih: {{tarih_araligi}}
@@ -63,14 +78,31 @@ const PERIOD_LABELS: Record<ReportPeriod, string> = {
 };
 
 const LENGTH_LABELS: Record<ReportLength, string> = {
-  short: "kısa",
-  medium: "orta",
-  detailed: "detaylı",
+  short:
+    "kısa — her madde ÇOK kısa, yaklaşık 4-10 kelime: 'Kısa Özellik Adı: birkaç kelimelik özet.' TAM CÜMLE KURMA; 've / ile / ayrıca' ile uzatma; ayrıntı, örnek, gerekçe verme; ilişkili işleri tek maddede birleştir. Örnek madde: 'Anlık Online Kullanıcı: canlı bağlı kullanıcı bandı eklendi.'",
+  medium:
+    "orta — her madde tek ama DOLU bir cümle: özelliğin ne olduğunu ve ne işe yaradığını gerekli birkaç ayrıntıyla anlatsın (ne kısacık, ne paragraf). Örnek madde: 'Canlı Platform Paneli: şu an izleyen, uygulamada olan ve son 15 dakikadaki satın alımları canlı gösteren bir ana panel eklendi.'",
+  detailed:
+    "detaylı — her özelliği enine boyuna aç: ne yapıldı, neden yapıldı, nasıl çalışıyor ve etkisi ne; gerektiğinde birden fazla cümle ve somut örnekler kullan",
 };
 
 /** Yaklaşık token tahmini (~4 karakter/token) — Ayarlar'daki sayaç için. */
 export function estimateTokens(text: string): number {
   return Math.ceil(text.trim().length / 4);
+}
+
+/**
+ * Prompt'un EN SONUNA eklenen, örnek biçimden ve custom template'ten daha öncelikli
+ * zorunlu kurallar bloğu. Kullanıcının kayıtlı promptu `{{uzunluk}}` değişkenini içermese
+ * bile uzunluk ve Backend/Frontend ayrımı böylece HER ZAMAN uygulanır. Saf fonksiyon.
+ */
+export function buildHardRules(length: ReportLength): string {
+  return `
+
+==== ZORUNLU KURALLAR (yukarıdaki her şeyden ve örnek maddelerin uzunluğundan DAHA ÖNCELİKLİ) ====
+1) UZUNLUK — ${LENGTH_LABELS[length]}
+   Örnek biçimdeki maddeler uzun olsa bile SEN bu uzunluğa uy; uzunluk seçimi diğer her şeyin önünde gelir.
+2) GRUPLAMA — Her projeyi kendi başlığı altında topla; o projenin işlerini ayrı "Backend" ve "Frontend" alt satırlarına AYIR (yalnız o katmanda iş varsa). Backend ve frontend maddelerini aynı listede karıştırma. Aynı projede Backend bloğu ile Frontend bloğu ARASINA bir BOŞ SATIR koy.`;
 }
 
 /** Şablondaki {{değişken}}'leri commit bağlamıyla doldurur. Saf fonksiyon. */
@@ -164,7 +196,8 @@ export function buildReportPrompt(
     const extra = options.customInstructions.trim()
       ? `\n\nEK TALİMATLAR:\n${options.customInstructions.trim()}`
       : "";
-    return rendered + extra;
+    // Uzunluk + Backend/Frontend ayrımını, template değişken içermese bile sonda garanti et.
+    return rendered + extra + buildHardRules(options.length ?? "detailed");
   }
 
   const repoNames = [...new Set(commits.map((c) => c.repoName))];
@@ -175,19 +208,7 @@ export function buildReportPrompt(
     {
       on: sections.summary,
       marker: SECTION_MARKERS.summary,
-      desc: `Bugün yapılan işlerin özeti. ŞU FORMATTA yaz:
-   - Commit'leri PROJEYE göre grupla. Her proje bir "## Proje Adı" başlığı olsun.
-   - Her projenin altında ilgili katman(lar)ı "### Backend" / "### Frontend" alt başlığıyla ayır (o katmanda iş varsa).
-   - Her madde, o iş biriminde NE yapıldığını anlatan TEK, düz, doğal bir Türkçe cümle olsun (geçmiş zaman, ben dili: "...ekledim", "...düzelttim", "...çözdüm").
-   - Cümleyi commit KONUSU + AÇIKLAMASI + değişen dosyalara bakarak yaz; ham commit mesajını olduğu gibi kopyalama, teknik jargonu sadeleştir ama doğru kal.
-   - İlişkili birkaç commit'i tek anlamlı maddede birleştirebilirsin. Emoji kullanma.
-   Örnek biçim:
-   ## Fastdrama
-   ### Backend
-   - Stripe ödemelerinde tutarların 100 kat fazla görünmesi hatasını (cent/dolar) kökünden çözdüm.
-   - Bedava kredi miktarını koda gömmekten çıkarıp veritabanına bağladım.
-   ### Frontend
-   - Dashboard'a "Giriş Trendleri" ve "Kredi Ekonomisi" grafiklerini ekledim.`,
+      desc: `Bugünkü işlerin kısa özeti. Commit'leri projeye göre grupla; her proje kendi adıyla düz bir başlık satırı olsun, altında yapılan işleri "- " ile madde madde yaz. Sade ve anlaşılır tut, teknik jargonu sadeleştir. Markdown kullanma (##, ** yok), sadece düz metin.`,
     },
     {
       on: sections.standup,

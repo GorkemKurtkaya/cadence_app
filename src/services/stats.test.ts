@@ -56,18 +56,32 @@ describe("computeStreak", () => {
 });
 
 describe("computeProjectStats", () => {
-  it("repoya göre gruplar, be/fe ayırır, en yeni commit'i tutar", () => {
+  it("projeye göre gruplar, be/fe ayırır, en yeni commit'i tutar", () => {
     const commits = [
-      commit({ sha: "n1", repoName: "novelify", area: "fe", committedAt: "2026-07-24T12:00:00Z" }),
-      commit({ sha: "n2", repoName: "novelify", area: "be", committedAt: "2026-07-24T09:00:00Z" }),
-      commit({ sha: "f1", repoName: "fastdrama", area: "be", committedAt: "2026-07-24T08:00:00Z" }),
+      commit({ sha: "n1", project: "Novelify", area: "fe", committedAt: "2026-07-24T12:00:00Z" }),
+      commit({ sha: "n2", project: "Novelify", area: "be", committedAt: "2026-07-24T09:00:00Z" }),
+      commit({ sha: "f1", project: "Fastdrama", area: "be", committedAt: "2026-07-24T08:00:00Z" }),
     ];
     const stats = computeProjectStats(commits);
-    expect(stats[0].repoName).toBe("novelify");
+    expect(stats).toHaveLength(2);
+    expect(stats[0].project).toBe("Novelify");
     expect(stats[0].commits).toBe(2);
     expect(stats[0].frontend).toBe(1);
     expect(stats[0].backend).toBe(1);
     expect(stats[0].lastCommit?.sha).toBe("n1");
+  });
+
+  it("aynı gerçek ada (alias) sahip farklı repolar tek projede birleşir", () => {
+    const commits = [
+      commit({ sha: "b1", repoName: "storyapp_backend", project: "Novelify", area: "be" }),
+      commit({ sha: "f1", repoName: "storyapp_frontend", project: "Novelify", area: "fe" }),
+    ];
+    const stats = computeProjectStats(commits);
+    expect(stats).toHaveLength(1);
+    expect(stats[0].project).toBe("Novelify");
+    expect(stats[0].commits).toBe(2);
+    expect(stats[0].backend).toBe(1);
+    expect(stats[0].frontend).toBe(1);
   });
 });
 

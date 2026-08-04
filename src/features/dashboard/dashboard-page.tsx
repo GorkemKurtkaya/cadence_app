@@ -127,7 +127,7 @@ function ProjectDistribution({ data, period }: { data: DashboardData; period: Re
       ) : (
         <div className="flex flex-col gap-3.5">
           {data.projects.slice(0, 4).map((p, i) => (
-            <div key={p.repoName}>
+            <div key={p.project}>
               <div className="mb-1.5 flex justify-between text-[12.5px]">
                 <span className="text-foreground">{p.project}</span>
                 <span className="text-muted-foreground font-mono">{p.commits}</span>

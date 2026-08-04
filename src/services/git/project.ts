@@ -16,9 +16,20 @@ function prettify(name: string): string {
 /**
  * Repo adından proje adı ve katmanı (Backend/Frontend/Diğer) türetir.
  * Örn: "story_app_backend" → { project: "Story App", layer: "Backend" }.
+ * `aliases[repoName]` doluysa proje adı olarak o kullanılır (katman yine türetilir).
  * Saf fonksiyondur — test edilir.
  */
-export function deriveProject(repoName: string): { project: string; layer: RepoLayer } {
+export function deriveProject(
+  repoName: string,
+  aliases?: Record<string, string>,
+): { project: string; layer: RepoLayer } {
+  const alias = aliases?.[repoName]?.trim();
+  const derived = deriveLayer(repoName);
+  return { project: alias || derived.project, layer: derived.layer };
+}
+
+/** Repo adından proje adını ve katmanı (alias'sız) saf türetim. */
+function deriveLayer(repoName: string): { project: string; layer: RepoLayer } {
   for (const { re, layer } of LAYER_SUFFIXES) {
     if (re.test(repoName)) {
       return { project: prettify(repoName.replace(re, "")), layer };

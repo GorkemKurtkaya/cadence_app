@@ -119,6 +119,18 @@
     font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
   }
+  /* Tailwind v4 butonlara varsayılan imleç veriyor; tıklanabilirleri pointer yap. */
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]),
+  label[for],
+  summary,
+  a[href] {
+    cursor: pointer;
+  }
+  button:disabled,
+  [aria-disabled="true"] {
+    cursor: not-allowed;
+  }
   /* İnce, koyu tema uyumlu kaydırma çubuğu (tasarımdaki gibi). */
   ::-webkit-scrollbar {
     width: 8px;

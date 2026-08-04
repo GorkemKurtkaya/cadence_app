@@ -101,12 +101,16 @@ export function computeStreak(activeDates: string[], today: string): StreakStats
   return { current, longest, totalActiveDays: total };
 }
 
-/** Proje (repo) bazlı özet — commit'ler yeni→eski geldiği varsayılır. */
+/**
+ * Proje bazlı özet — commit'ler yeni→eski geldiği varsayılır.
+ * Gruplama `project` (alias uygulanmış) üzerinden; aynı gerçek ada sahip repolar birleşir.
+ * `repoName`/`repoPath` ilk görülen repo'nun temsili değeridir.
+ */
 export function computeProjectStats(commits: CommitRow[]): ProjectStats[] {
   const map = new Map<string, ProjectStats>();
   for (const c of commits) {
     const cur =
-      map.get(c.repoName) ??
+      map.get(c.project) ??
       ({
         project: c.project,
         repoName: c.repoName,
@@ -127,7 +131,7 @@ export function computeProjectStats(commits: CommitRow[]): ProjectStats[] {
     if (!cur.lastCommit) {
       cur.lastCommit = { sha: c.sha, message: c.message, committedAt: c.committedAt };
     }
-    map.set(c.repoName, cur);
+    map.set(c.project, cur);
   }
   return [...map.values()].sort((a, b) => b.commits - a.commits);
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildReportPrompt, estimateTokens, renderTemplate } from "./prompt";
+import { buildHardRules, buildReportPrompt, estimateTokens, renderTemplate } from "./prompt";
 import type { CommitInfo } from "@/types";
 
 function commit(partial: Partial<CommitInfo> = {}): CommitInfo {
@@ -61,6 +61,27 @@ describe("buildReportPrompt", () => {
       customInstructions: "",
     });
     expect(out).toContain("===OZET===");
+  });
+
+  it("custom şablon {{uzunluk}} içermese bile uzunluk kuralını sona ekler", () => {
+    const out = buildReportPrompt("2026-07-24", [commit()], {
+      sections: { summary: true, standup: false, technical: false },
+      customInstructions: "",
+      template: "Rapor yaz.", // uzunluk değişkeni yok
+      length: "short",
+    });
+    expect(out).toContain("ZORUNLU KURALLAR");
+    expect(out).toContain("4-10 kelime"); // kısa etiketi sonda garanti
+    expect(out).toContain("Backend"); // BE/FE ayrım kuralı
+  });
+});
+
+describe("buildHardRules", () => {
+  it("seçilen uzunluğun etiketini ve BE/FE ayrım kuralını içerir", () => {
+    const short = buildHardRules("short");
+    expect(short).toContain("4-10 kelime");
+    expect(short).toContain("Frontend");
+    expect(buildHardRules("detailed")).toContain("enine boyuna");
   });
 });
 
