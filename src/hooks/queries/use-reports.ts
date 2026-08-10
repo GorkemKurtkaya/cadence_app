@@ -1,6 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "@/lib/query/keys";
-import { getReport, listReportDates, listReports, getCommitsByDate } from "@/services/storage";
+import {
+  getReport,
+  listReportDates,
+  listReports,
+  getCommitsByDate,
+  getCommitsByRange,
+} from "@/services/storage";
 import {
   generateDailyReport,
   type GenerateOptions,
@@ -21,6 +27,14 @@ export function useCommits(date: string) {
   return useQuery({
     queryKey: queryKeys.reports.commits(date),
     queryFn: () => getCommitsByDate(date),
+  });
+}
+
+/** `[from..to]` aralığının kayıtlı commit listesi (rapor drawer'ı periyoda göre kullanır). */
+export function useCommitsRange(from: string, to: string) {
+  return useQuery({
+    queryKey: queryKeys.commits.range(from, to),
+    queryFn: () => getCommitsByRange(from, to),
   });
 }
 

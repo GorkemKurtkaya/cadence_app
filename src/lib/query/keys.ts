@@ -9,7 +9,11 @@ export const queryKeys = {
   },
   commits: {
     all: ["commits"] as const,
+    // Düz commit listesi (CommitRow[]) — rapor drawer'ı kullanır.
     range: (from: string, to: string) => [...queryKeys.commits.all, "range", from, to] as const,
+    // Güne göre gruplu liste (CommitListDay[]) — Commitlerim ekranı.
+    // range ile AYNI şekli paylaşmadığı için ayrı key: aksi halde cache çakışır.
+    days: (from: string, to: string) => [...queryKeys.commits.all, "days", from, to] as const,
     recent: (limit: number) => [...queryKeys.commits.all, "recent", limit] as const,
   },
   stats: {

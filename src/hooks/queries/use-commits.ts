@@ -8,7 +8,7 @@ import type { CommitListDay } from "@/types";
 /** Bir tarih aralığındaki commit'leri güne göre gruplu döner (Commitlerim ekranı). */
 export function useCommitDays(from: string, to: string) {
   return useQuery<CommitListDay[]>({
-    queryKey: queryKeys.commits.range(from, to),
+    queryKey: queryKeys.commits.days(from, to),
     queryFn: async () => groupByDay(await getCommitsByRange(from, to)),
   });
 }

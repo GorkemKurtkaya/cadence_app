@@ -1,12 +1,17 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { toast } from "sonner";
 import {
   Search,
   Copy,
   ChevronsUpDown,
+  ChevronDown,
+  Check,
+  Minus,
   CheckSquare,
   GitCommitHorizontal,
   DownloadCloud,
+  FileJson,
   Loader2,
   X,
   Layers,
@@ -22,11 +27,12 @@ import { useCommitDays, useScanCommits } from "@/hooks/queries/use-commits";
 import { useDragScroll } from "@/hooks/use-drag-scroll";
 import { useAppStore } from "@/stores/use-app-store";
 import { rangeFor } from "@/services/stats";
+import { exportCommitsJson } from "@/services/export";
 import { todayKey } from "@/lib/date";
 import { signedCompact } from "@/lib/format";
 import { PULL_PRESETS, presetToRange, type PullPreset } from "@/lib/pull-presets";
 import { cn } from "@/lib/utils";
-import type { CommitArea, CommitListDay } from "@/types";
+import type { CommitArea, CommitListDay, CommitRow } from "@/types";
 
 function dayLabel(date: string, today: string): string {
   const [y, m, d] = date.split("-");
@@ -63,6 +69,7 @@ export function CommitsPage() {
   const setCommitRange = useAppStore((s) => s.setCommitRange);
   const selectedShas = useAppStore((s) => s.selectedShas);
   const toggleCommitSelected = useAppStore((s) => s.toggleCommitSelected);
+  const setCommitSelection = useAppStore((s) => s.setCommitSelection);
   const clearCommitSelection = useAppStore((s) => s.clearCommitSelection);
 
   const today = todayKey();
@@ -152,6 +159,88 @@ export function CommitsPage() {
     toast.success(`${selectedCount} commit kopyalandı`);
   };
 
+  // Filtrelenmiş günleri düz commit listesine indirger (JSON dışa aktarım için).
+  const flatCommits = (onlySelected: boolean): CommitRow[] =>
+    filtered.flatMap((d) =>
+      onlySelected ? d.items.filter((c) => selectedShas.has(c.sha)) : d.items,
+    );
+
+  // JSON export proje seçimi: görünen commit'lerdeki projeler + opt-out hariç tutma seti.
+  const [exportMenuOpen, setExportMenuOpen] = useState(false);
+  // Export'tan hariç tutulan projeler (opt-out). Boş → hepsi dahil.
+  const [exportExcluded, setExportExcluded] = useState<Set<string>>(new Set());
+  const exportBtnRef = useRef<HTMLButtonElement>(null);
+  const exportMenuRef = useRef<HTMLDivElement>(null);
+  // Menü portal ile body'ye basılıp buton konumuna göre fixed yerleştirilir (ancestor kırpmasın).
+  const [menuPos, setMenuPos] = useState<{ top: number; right: number } | null>(null);
+  const toggleExportMenu = () =>
+    setExportMenuOpen((o) => {
+      if (!o) {
+        const r = exportBtnRef.current?.getBoundingClientRect();
+        if (r) setMenuPos({ top: r.bottom + 6, right: window.innerWidth - r.right });
+      }
+      return !o;
+    });
+
+  // Görünen (filtrelenmiş) commit'lerde yer alan projeler — export menüsünü besler.
+  const visibleProjects = useMemo(() => {
+    const set = new Set<string>();
+    filtered.forEach((d) => d.items.forEach((c) => set.add(c.project)));
+    return [...set].sort((a, b) => a.localeCompare(b, "tr"));
+  }, [filtered]);
+
+  const toggleExportProject = (p: string) =>
+    setExportExcluded((prev) => {
+      const next = new Set(prev);
+      if (next.has(p)) next.delete(p);
+      else next.add(p);
+      return next;
+    });
+  const allProjectsIncluded = visibleProjects.every((p) => !exportExcluded.has(p));
+  const someProjectsIncluded = visibleProjects.some((p) => !exportExcluded.has(p));
+  const toggleAllProjects = () =>
+    setExportExcluded(allProjectsIncluded ? new Set(visibleProjects) : new Set());
+
+  // Export'a girecek commit sayısı (seçili projelere göre).
+  const exportCount = flatCommits(false).filter((c) => !exportExcluded.has(c.project)).length;
+
+  // Menü dışına tıklanınca kapat (buton ve portal menü hariç).
+  useEffect(() => {
+    if (!exportMenuOpen) return;
+    const onDown = (e: MouseEvent) => {
+      const t = e.target as Node;
+      if (exportBtnRef.current?.contains(t) || exportMenuRef.current?.contains(t)) return;
+      setExportMenuOpen(false);
+    };
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
+  }, [exportMenuOpen]);
+
+  // Görünen tüm commit'ler seçili mi? (seçimi kaldır/tümünü seç toggle'ı için)
+  const allSelected = totalCommits > 0 && selectedCount === totalCommits;
+  const toggleSelectAll = () => {
+    if (allSelected) clearCommitSelection();
+    else setCommitSelection(flatCommits(false).map((c) => c.sha));
+  };
+
+  const exportJson = async (onlySelected: boolean) => {
+    const base = flatCommits(onlySelected);
+    // "Tümü" export'unda seçili projelere göre süz; "Seçilenler" zaten açık commit seçimi.
+    const commits = onlySelected ? base : base.filter((c) => !exportExcluded.has(c.project));
+    if (commits.length === 0) return;
+    const prefix = onlySelected ? "secili-commitler" : "commitler";
+    const name = `${prefix}-${range.from}_${range.to}.json`;
+    try {
+      const path = await exportCommitsJson(commits, name);
+      if (path) {
+        toast.success(`${commits.length} commit JSON olarak kaydedildi`);
+        setExportMenuOpen(false);
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "JSON kaydedilemedi");
+    }
+  };
+
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="flex flex-col gap-2.5 border-b px-6 py-3.5">
@@ -222,6 +311,15 @@ export function CommitsPage() {
           </button>
           <button
             type="button"
+            onClick={toggleSelectAll}
+            disabled={totalCommits === 0}
+            className="text-secondary-foreground bg-[#161b21] flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-xs font-semibold disabled:opacity-50"
+          >
+            <CheckSquare className="size-3.5" />
+            {allSelected ? "Seçimi kaldır" : "Tümünü seç"}
+          </button>
+          <button
+            type="button"
             onClick={copyAll}
             disabled={totalCommits === 0}
             className="text-accent-green flex items-center gap-1.5 rounded-md border border-[#274d34] bg-[#1b2f22] px-3 py-1.5 text-xs font-semibold disabled:opacity-50"
@@ -229,6 +327,57 @@ export function CommitsPage() {
             <Copy className="size-3.5" />
             Toplu kopyala ({totalCommits})
           </button>
+          <button
+            ref={exportBtnRef}
+            type="button"
+            onClick={toggleExportMenu}
+            disabled={totalCommits === 0}
+            className="text-secondary-foreground bg-[#161b21] flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-xs font-semibold disabled:opacity-50"
+          >
+            <FileJson className="size-3.5" />
+            JSON indir ({exportCount})
+            <ChevronDown className={cn("size-3.5 transition-transform", exportMenuOpen && "rotate-180")} />
+          </button>
+          {exportMenuOpen && menuPos
+            ? createPortal(
+                <div
+                  ref={exportMenuRef}
+                  style={{ position: "fixed", top: menuPos.top, right: menuPos.right }}
+                  className="bg-[#0f1418] z-50 w-60 rounded-lg border p-2 shadow-lg"
+                >
+                  <div className="text-muted-foreground mb-1 px-1.5 text-[10.5px] font-medium tracking-wider uppercase">
+                    Projeler
+                  </div>
+                  <div className="flex max-h-64 flex-col gap-0.5 overflow-y-auto">
+                    <ProjectCheck
+                      label="Tümü"
+                      checked={allProjectsIncluded}
+                      indeterminate={!allProjectsIncluded && someProjectsIncluded}
+                      onClick={toggleAllProjects}
+                      bold
+                    />
+                    {visibleProjects.map((p) => (
+                      <ProjectCheck
+                        key={p}
+                        label={p}
+                        checked={!exportExcluded.has(p)}
+                        onClick={() => toggleExportProject(p)}
+                      />
+                    ))}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => exportJson(false)}
+                    disabled={exportCount === 0}
+                    className="text-accent-green mt-2 flex w-full items-center justify-center gap-1.5 rounded-md border border-[#274d34] bg-[#1b2f22] py-2 text-xs font-semibold disabled:opacity-50"
+                  >
+                    <FileJson className="size-3.5" />
+                    {exportCount} commit indir
+                  </button>
+                </div>,
+                document.body,
+              )
+            : null}
         </div>
 
         {(pickerOpen || commitRange) && (
@@ -280,6 +429,14 @@ export function CommitsPage() {
             >
               <Copy className="size-3.5" />
               Seçilenleri Kopyala
+            </button>
+            <button
+              type="button"
+              onClick={() => exportJson(true)}
+              className="text-accent-green flex items-center gap-1.5 rounded-md border border-[#274d34] bg-[#152318] px-3 py-1.5 text-xs font-semibold"
+            >
+              <FileJson className="size-3.5" />
+              Seçilenleri JSON indir
             </button>
             <button
               type="button"
@@ -375,6 +532,52 @@ function DayGroup({
         ))}
       </div>
     </div>
+  );
+}
+
+/** Export menüsündeki tek proje satırı: checkbox (tri-state için indeterminate) + ad. */
+function ProjectCheck({
+  label,
+  checked,
+  indeterminate,
+  onClick,
+  bold,
+}: {
+  label: string;
+  checked: boolean;
+  indeterminate?: boolean;
+  onClick: () => void;
+  bold?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="hover:bg-[#161b21] flex w-full items-center gap-2 rounded-md px-1.5 py-1.5 text-left"
+    >
+      <span
+        className={cn(
+          "flex size-4 shrink-0 items-center justify-center rounded border",
+          checked || indeterminate
+            ? "border-[#274d34] bg-[#1b2f22] text-accent-green"
+            : "border-border text-transparent",
+        )}
+      >
+        {checked ? (
+          <Check className="size-3" />
+        ) : indeterminate ? (
+          <Minus className="size-3" />
+        ) : null}
+      </span>
+      <span
+        className={cn(
+          "truncate text-[12px]",
+          bold ? "text-foreground font-semibold" : "text-[#c8cdd5]",
+        )}
+      >
+        {label}
+      </span>
+    </button>
   );
 }
 

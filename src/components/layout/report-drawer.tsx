@@ -2,7 +2,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { X, Sparkles, RefreshCw, Copy, Check, Minus, ChevronRight } from "lucide-react";
 import { useAppStore } from "@/stores/use-app-store";
-import { useReport, useGenerateReport, useCommits } from "@/hooks/queries/use-reports";
+import { useReport, useGenerateReport, useCommitsRange } from "@/hooks/queries/use-reports";
+import { rangeFor } from "@/services/stats";
 import { todayKey } from "@/lib/date";
 import { cn } from "@/lib/utils";
 import type { ProgressStep } from "@/services/reportGenerator";
@@ -62,8 +63,10 @@ export function ReportDrawer() {
   const setTone = useAppStore((s) => s.setReportTone);
   const reportProjectScope = useAppStore((s) => s.reportProjectScope);
 
+  // Kapsanan commit'ler seçilen periyodun aralığına göre belirlenir (rapor da aynı aralığı tarar).
+  const range = useMemo(() => rangeFor(period, date), [period, date]);
   const { data: report } = useReport(date);
-  const { data: todayCommits } = useCommits(date);
+  const { data: rangeCommits } = useCommitsRange(range.from, range.to);
   const generate = useGenerateReport();
   const [progress, setProgress] = useState<string | null>(null);
   const [commitsOpen, setCommitsOpen] = useState(true);
@@ -98,19 +101,19 @@ export function ReportDrawer() {
       appliedScopeRef.current = null;
       return;
     }
-    if (!todayCommits) return; // scoped: commit'ler yüklenene kadar bekle
+    if (!rangeCommits) return; // scoped: commit'ler yüklenene kadar bekle
     setExcluded(
-      new Set(todayCommits.filter((c) => c.project !== reportProjectScope).map((c) => c.sha)),
+      new Set(rangeCommits.filter((c) => c.project !== reportProjectScope).map((c) => c.sha)),
     );
     appliedScopeRef.current = reportProjectScope;
-  }, [open, todayCommits, reportProjectScope]);
+  }, [open, rangeCommits, reportProjectScope]);
 
   if (!open) return null;
 
   const onGenerate = () => {
     setProgress("Başlıyor…");
     // Hepsi dahilse selectedShas gönderme (undefined = tümü); aksi halde dahil edilenleri yolla.
-    const included = (todayCommits ?? []).filter((c) => !excluded.has(c.sha)).map((c) => c.sha);
+    const included = (rangeCommits ?? []).filter((c) => !excluded.has(c.sha)).map((c) => c.sha);
     const selectedShas = excluded.size > 0 ? included : undefined;
     generate.mutate(
       {
@@ -122,7 +125,9 @@ export function ReportDrawer() {
         onSuccess: ({ commitCount }) => {
           setProgress(null);
           toast.success(
-            commitCount > 0 ? `Rapor hazır — ${commitCount} commit.` : "Bugün commit bulunamadı.",
+            commitCount > 0
+              ? `Rapor hazır — ${commitCount} commit.`
+              : "Seçilen aralıkta commit bulunamadı.",
           );
         },
         onError: (err) => {
@@ -146,9 +151,9 @@ export function ReportDrawer() {
       </div>
 
       <div className="flex flex-col gap-4 border-b px-4.5 py-4">
-        {todayCommits && todayCommits.length > 0 ? (
+        {rangeCommits && rangeCommits.length > 0 ? (
           <CommitPicker
-            commits={todayCommits}
+            commits={rangeCommits}
             excluded={excluded}
             onToggle={toggleExcluded}
             onToggleGroup={setGroupExcluded}

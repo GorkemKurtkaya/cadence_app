@@ -38,6 +38,7 @@ interface AppState {
   // Commitlerim ekranında kopyala için seçili commit'ler (opt-in). Boş → hepsi.
   selectedShas: Set<string>;
   toggleCommitSelected: (sha: string) => void;
+  setCommitSelection: (shas: string[]) => void;
   clearCommitSelection: () => void;
   // "Commitlerimi Çek" ile seçilen görüntüleme aralığı (null = header periyot toggle'ı belirler).
   commitRange: { from: string; to: string } | null;
@@ -80,6 +81,7 @@ export const useAppStore = create<AppState>((set) => ({
       else next.add(sha);
       return { selectedShas: next };
     }),
+  setCommitSelection: (shas) => set({ selectedShas: new Set(shas) }),
   clearCommitSelection: () => set({ selectedShas: new Set<string>() }),
   commitRange: null,
   setCommitRange: (commitRange) => set({ commitRange }),

@@ -30,10 +30,20 @@ export async function checkGhAvailable(): Promise<boolean> {
  * Ayarlarda GitHub kapalıysa veya kullanıcı adı yoksa boş döner.
  */
 export async function fetchGithubCommits(date: string): Promise<CommitInfo[]> {
+  return fetchGithubCommitsRange(date, date);
+}
+
+/**
+ * `[from..to]` aralığı için kullanıcının GitHub commit'lerini çeker.
+ * `from === to` → tek gün (committer-date:date); aksi halde aralık (committer-date:from..to).
+ * Ayarlarda GitHub kapalıysa veya kullanıcı adı yoksa boş döner.
+ */
+export async function fetchGithubCommitsRange(from: string, to: string): Promise<CommitInfo[]> {
   const settings = await getSettings();
   if (!settings.githubEnabled || !settings.githubUsername) return [];
 
-  const q = `author:${settings.githubUsername} committer-date:${date}`;
+  const dateFilter = from === to ? from : `${from}..${to}`;
+  const q = `author:${settings.githubUsername} committer-date:${dateFilter}`;
   try {
     const out = await execCommand("gh", [
       "api",

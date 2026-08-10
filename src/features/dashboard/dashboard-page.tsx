@@ -1,10 +1,11 @@
 import { Link } from "@tanstack/react-router";
 import { StatCard, StatCardSkeleton } from "@/components/common/stat-card";
-import { ContributionHeatmap } from "@/components/common/contribution-heatmap";
+import { ContributionHeatmap, HeatmapLegend } from "@/components/common/contribution-heatmap";
+import { YearHeatmap } from "@/components/common/year-heatmap";
 import { ErrorAlert } from "@/components/common/error-alert";
 import { Skeleton } from "@/components/ui/skeleton";
 import { OnboardingWizard } from "@/features/dashboard/components/onboarding-wizard";
-import { useDashboard, type DashboardData } from "@/hooks/queries/use-stats";
+import { useDashboard, useStreak, type DashboardData } from "@/hooks/queries/use-stats";
 import { useAppStore } from "@/stores/use-app-store";
 import { signedCompact } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -62,6 +63,7 @@ export function DashboardPage() {
 
       <WeeklyActivity data={data} />
       <ProjectDistribution data={data} period={period} />
+      <YearActivity />
       <RecentCommits data={data} />
     </div>
   );
@@ -111,6 +113,24 @@ function WeeklyActivity({ data }: { data: DashboardData }) {
           );
         })}
       </div>
+    </div>
+  );
+}
+
+/** GitHub tarzı yıllık katkı takvimi paneli — kendi query'siyle yüklenir (streak ile cache paylaşır). */
+function YearActivity() {
+  const { data } = useStreak();
+  return (
+    <div className={cn(PANEL, "col-span-4")}>
+      <div className="mb-3.5 flex items-center justify-between">
+        <div className="text-[13.5px] font-semibold text-[#c8cdd5]">Katkı takvimi · son 1 yıl</div>
+        <HeatmapLegend />
+      </div>
+      {data ? (
+        <YearHeatmap calendar={data.calendar} />
+      ) : (
+        <Skeleton className="h-28 w-full rounded-lg" />
+      )}
     </div>
   );
 }
@@ -186,6 +206,7 @@ export function DashboardSkeleton() {
       <StatCardSkeleton />
       <Skeleton className="col-span-2 h-40 rounded-xl" />
       <Skeleton className="col-span-2 h-40 rounded-xl" />
+      <Skeleton className="col-span-4 h-44 rounded-xl" />
       <Skeleton className="col-span-4 h-48 rounded-xl" />
     </div>
   );

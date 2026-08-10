@@ -1,8 +1,9 @@
 // Günlük rapor orkestrasyonu: topla → prompt → Claude → parse → kaydet.
 import { getLogger } from "./logger";
 import { getSettings } from "./config";
-import { scanLocalCommits, scanLocalCommitsRange } from "./repoScanner";
-import { fetchGithubCommits, mergeCommits } from "./githubConnector";
+import { scanLocalCommitsRange } from "./repoScanner";
+import { fetchGithubCommitsRange, mergeCommits } from "./githubConnector";
+import { rangeFor } from "./stats";
 import { upsertRepo, saveCommits, saveReport } from "./storage";
 import { buildReportPrompt, DEFAULT_PROMPT_TEMPLATE } from "./report/prompt";
 import { parseReportSections } from "./report/parse";
@@ -21,11 +22,6 @@ export interface GenerateOptions {
   selectedShas?: string[];
 }
 
-export interface ScanResult {
-  date: string;
-  commits: CommitInfo[];
-}
-
 export interface ScanRangeResult {
   from: string | null;
   to: string;
@@ -42,34 +38,6 @@ export type ProgressStep =
   | { kind: "github" }
   | { kind: "claude" }
   | { kind: "save" };
-
-/** Belirli günün commit'lerini tarar ve depolar (rapor üretmeden). */
-export async function scanDay(
-  date: string,
-  onProgress?: (step: ProgressStep) => void,
-): Promise<ScanResult> {
-  const settings = await getSettings();
-
-  const { repos, commits: local } = await scanLocalCommits(
-    settings.repoRoots,
-    date,
-    (repoName) => onProgress?.({ kind: "scan", repoName }),
-    {
-      allBranches: settings.scanAllBranches,
-      onlyMine: settings.onlyMyCommits,
-      aliases: settings.projectAliases,
-    },
-  );
-  for (const repo of repos) await upsertRepo(repo);
-
-  onProgress?.({ kind: "github" });
-  const github = await fetchGithubCommits(date);
-
-  const all = mergeCommits(local, github);
-  await saveCommits(all);
-
-  return { date, commits: all };
-}
 
 /**
  * `[from..to]` aralığının yerel commit'lerini tarar ve depolar (geçmiş geri-doldurma).
@@ -103,25 +71,51 @@ export async function scanRange(
   return { from, to, commits };
 }
 
-/** Günün raporunu uçtan uca üretir ve kaydeder. */
+/**
+ * Raporu uçtan uca üretir ve kaydeder. Kapsanan commit'ler seçilen **periyodun**
+ * aralığıyla belirlenir (`rangeFor`): Günlük → yalnız `date`; Haftalık/Aylık/Yıllık →
+ * periyot başından `date`'e kadar. Rapor `date` anahtarıyla saklanır.
+ */
 export async function generateDailyReport(
   date: string,
   onProgress?: (step: ProgressStep) => void,
   opts: GenerateOptions = {},
 ): Promise<GenerateResult> {
-  const { commits: scanned } = await scanDay(date, onProgress);
-  // Seçili SHA'lar verildiyse yalnız onları al; boşsa o günün tümü.
-  const commits = filterBySelectedShas(scanned, opts.selectedShas);
   const settings = await getSettings();
   const period = opts.period ?? settings.defaultPeriod;
   const length = opts.length ?? settings.defaultLength;
   const tone = opts.tone ?? settings.defaultTone;
 
+  // Periyoda göre aralık: bitiş = rapor tarihi (date), başlangıç = periyot başı.
+  const { from, to } = rangeFor(period, date);
+
+  // Aralığın yerel commit'lerini tara + GitHub'ı aralıkla çek, birleştir, depola.
+  const { repos, commits: local } = await scanLocalCommitsRange(
+    settings.repoRoots,
+    from,
+    to,
+    (repoName) => onProgress?.({ kind: "scan", repoName }),
+    {
+      allBranches: settings.scanAllBranches,
+      onlyMine: settings.onlyMyCommits,
+      aliases: settings.projectAliases,
+    },
+  );
+  for (const repo of repos) await upsertRepo(repo);
+
+  onProgress?.({ kind: "github" });
+  const github = await fetchGithubCommitsRange(from, to);
+  const scanned = mergeCommits(local, github);
+  await saveCommits(scanned);
+
+  // Seçili SHA'lar verildiyse yalnız onları al; boşsa aralığın tümü.
+  const commits = filterBySelectedShas(scanned, opts.selectedShas);
+
   // Commit yoksa Claude'u çağırmadan boş rapor üret (maliyet/gürültü yok).
   if (commits.length === 0) {
     const empty: DailyReport = {
       reportDate: date,
-      summaryMd: "Bu güne ait commit bulunamadı.",
+      summaryMd: "Seçilen aralıkta commit bulunamadı.",
       standupMd: "",
       technicalMd: "",
       model: "-",
