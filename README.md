@@ -12,6 +12,7 @@
 
 [![Release](https://img.shields.io/github/v/release/GorkemKurtkaya/cadence_app?include_prereleases&label=release&color=2ecc71)](https://github.com/GorkemKurtkaya/cadence_app/releases)
 [![Downloads](https://img.shields.io/github/downloads/GorkemKurtkaya/cadence_app/total?color=2ecc71&label=downloads)](https://github.com/GorkemKurtkaya/cadence_app/releases)
+[![License: MIT](https://img.shields.io/badge/license-MIT-yellow)](./LICENSE)
 ![Platform](https://img.shields.io/badge/platform-macOS%20%C2%B7%20Windows-black)
 ![Tauri](https://img.shields.io/badge/Tauri-v2-24C8DB?logo=tauri&logoColor=white)
 ![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black)
@@ -228,6 +229,12 @@ npm run tauri dev   # requires the Rust toolchain (rustup) once, for compiling
 ```
 
 </details>
+
+---
+
+## 📄 Lisans
+
+[MIT](./LICENSE) © 2026 Görkem Kurtkaya — özgürce kullan, değiştir ve dağıt; tek şart telif notunun korunması.
 
 ---
 
