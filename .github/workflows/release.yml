@@ -1,0 +1,63 @@
+name: Release
+
+# 'v' ile başlayan bir tag push edildiğinde çalışır: örn. git tag v0.1.1 && git push --tags
+on:
+  push:
+    tags:
+      - "v*"
+  # Elle de tetiklenebilsin (GitHub > Actions > Release > Run workflow)
+  workflow_dispatch:
+
+# tauri-action'ın Release oluşturabilmesi için yazma izni
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Apple Silicon (M1/M2/M3) + Intel Mac tek universal .dmg
+          - platform: macos-latest
+            target: universal-apple-darwin
+            args: "--target universal-apple-darwin"
+          # Windows .exe (NSIS) + .msi
+          - platform: windows-latest
+            target: ""
+            args: ""
+
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Node.js kur
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Rust toolchain kur
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          # macOS'ta universal build için iki hedef de gerekli
+          targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: "./src-tauri -> target"
+
+      - name: Bağımlılıkları kur
+        run: npm ci
+
+      - name: Derle ve Release oluştur
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: ${{ github.ref_name }}
+          releaseName: "Cadence ${{ github.ref_name }}"
+          releaseBody: "Cadence günlük rapor uygulaması. Aşağıdan işletim sistemine uygun kurulumu indir."
+          releaseDraft: true
+          prerelease: false
+          args: ${{ matrix.args }}
